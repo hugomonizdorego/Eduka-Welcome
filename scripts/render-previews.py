@@ -17,6 +17,7 @@ original_read = Path.read_text
 # Previews must look the same on any machine: fixed system time zone.
 import edukasaun_welcome.gui as gui
 gui.current_timezone = lambda: "Etc/UTC"
+gui.eduka_installed = lambda: True
 
 
 def fixture_read(path, *args, **kwargs):
@@ -34,7 +35,7 @@ with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"XDG_CONFI
     window.populate_apps()
     window.show()
     application.processEvents()
-    for page in range(6):
+    for page in range(7):
         window.navigate(page)
         application.processEvents()
         window.grab().save(str(ROOT / "docs" / f"page-{page + 1}.png"))

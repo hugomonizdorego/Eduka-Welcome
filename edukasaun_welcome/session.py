@@ -27,13 +27,16 @@ def should_show_welcome(preferences, live=None):
 
 
 def process_running(name, proc_root="/proc"):
-    """Look for a process of the current user by executable name, without psutil."""
+    """Find a process of the current user whose command line runs `name`.
+
+    Eduka-Desktop components are Python scripts started through `env`, so the
+    process name is often `python3`; compare command line arguments instead.
+    """
     if not name:
         return False
     uid = os.getuid()
-    root = Path(proc_root)
     try:
-        entries = list(root.iterdir())
+        entries = list(Path(proc_root).iterdir())
     except OSError:
         return False
     for entry in entries:
@@ -42,19 +45,23 @@ def process_running(name, proc_root="/proc"):
         try:
             if entry.stat().st_uid != uid:
                 continue
-            if (entry / "comm").read_text().strip() == name[:15]:
-                return True
+            arguments = (entry / "cmdline").read_bytes().split(b"\0")[:4]
         except OSError:
             continue
+        if any(Path(argument.decode(errors="replace")).name == name for argument in arguments if argument):
+            return True
     return False
 
 
 def start_desktop(settings, popen=subprocess.Popen):
-    """Start Eduka-Desktop detached, unless it is already running or not installed."""
-    command = list(settings.get("command", []))
-    if not command or not shutil.which(command[0]):
-        return False
-    if process_running(settings.get("process") or Path(command[0]).name):
-        return True
-    popen(command, start_new_session=True)
-    return True
+    """Start each Eduka-Desktop component detached, unless running or not installed."""
+    environment = {**os.environ, **{str(k): str(v) for k, v in settings.get("environment", {}).items()}}
+    started = False
+    for component in settings.get("components", []):
+        command = list(component.get("command", []))
+        if not command or not shutil.which(command[0]):
+            continue
+        started = True
+        if not process_running(component.get("process") or Path(command[0]).name):
+            popen(command, start_new_session=True, env=environment)
+    return started

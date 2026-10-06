@@ -35,30 +35,33 @@ class LiveSessionTests(unittest.TestCase):
 
 
 class DesktopLaunchTests(unittest.TestCase):
-    def test_start_desktop_once(self):
+    SETTINGS = {"environment": {"QT_LINUX_ACCESSIBILITY_ALWAYS_ON": "1"},
+                "components": [{"command": ["eduka-menu", "--daemon"], "process": "eduka-menu"},
+                               {"command": ["eduka-panel"], "process": "eduka-panel"}]}
+
+    def test_start_each_component_once(self):
         started = []
-        settings = {"command": ["eduka-desktop", "--fixture"], "process": "eduka-desktop"}
-        with patch("shutil.which", return_value="/usr/bin/eduka-desktop"), \
-                patch("edukasaun_welcome.session.process_running", return_value=False):
-            self.assertTrue(start_desktop(settings, lambda command, **kwargs: started.append(command)))
-        self.assertEqual(started, [["eduka-desktop", "--fixture"]])
-        with patch("shutil.which", return_value="/usr/bin/eduka-desktop"), \
-                patch("edukasaun_welcome.session.process_running", return_value=True):
-            self.assertTrue(start_desktop(settings, lambda command, **kwargs: started.append(command)))
-        self.assertEqual(len(started), 1)
+        def popen(command, **kwargs):
+            started.append(command)
+            self.assertEqual(kwargs["env"]["QT_LINUX_ACCESSIBILITY_ALWAYS_ON"], "1")
+        with patch("shutil.which", return_value="/usr/bin/fixture"), \
+                patch("edukasaun_welcome.session.process_running", side_effect=lambda name: name == "eduka-panel"):
+            self.assertTrue(start_desktop(self.SETTINGS, popen))
+        self.assertEqual(started, [["eduka-menu", "--daemon"]])
 
     def test_missing_desktop_is_not_started(self):
         with patch("shutil.which", return_value=None):
-            self.assertFalse(start_desktop({"command": ["eduka-desktop"]}, lambda *a, **k: self.fail()))
+            self.assertFalse(start_desktop(self.SETTINGS, lambda *a, **k: self.fail()))
         self.assertFalse(start_desktop({}, lambda *a, **k: self.fail()))
 
-    def test_process_lookup(self):
+    def test_process_lookup_by_command_line(self):
         with tempfile.TemporaryDirectory() as folder:
             entry_dir = Path(folder) / "4242"
             entry_dir.mkdir()
-            (entry_dir / "comm").write_text("eduka-desktop\n")
-            self.assertTrue(process_running("eduka-desktop", folder))
-            self.assertFalse(process_running("eduka-panel", folder))
+            (entry_dir / "comm").write_text("python3\n")
+            (entry_dir / "cmdline").write_bytes(b"python3\0/usr/bin/eduka-panel\0")
+            self.assertTrue(process_running("eduka-panel", folder))
+            self.assertFalse(process_running("eduka-menu", folder))
 
     def test_session_gate_on_live_system_starts_desktop_without_welcome(self):
         with patch.object(entry, "is_live_session", return_value=True), \

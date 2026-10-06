@@ -18,4 +18,4 @@ edukasaun-welcome = "edukasaun_welcome.__main__:main"
 include = ["edukasaun_welcome*"]
 
 [tool.setuptools.package-data]
-edukasaun_welcome = ["locales/*.json", "data/*.json", "data/*.svg"]
+edukasaun_welcome = ["locales/*.json", "data/*.json", "data/*.svg", "data/sponsors/*"]

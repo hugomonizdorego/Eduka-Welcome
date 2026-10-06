@@ -14,6 +14,7 @@ try:
     from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox
     from edukasaun_welcome.desktop import apply_desktop, current_settings
     from edukasaun_welcome.gui import WelcomeWindow
+    from edukasaun_welcome.eduka_desktop import read_settings, save_settings
     QT_AVAILABLE = True
 except ImportError:
     QT_AVAILABLE = False
@@ -88,14 +89,16 @@ class NativeTests(unittest.TestCase):
         self.window.populate_apps()
 
     def test_six_pages_navigation(self):
-        self.assertEqual(self.window.stack.count(), 6)
+        self.assertEqual(self.window.stack.count(), 7)
         self.assertTrue(self.window.always.isChecked())
         self.assertFalse(self.window.back_button.isEnabled())
-        self.assertEqual(self.window.counter.text(), "Step 1 of 6")
-        self.window.navigate(5)
+        self.assertEqual(self.window.counter.text(), "Step 1 of 7")
+        self.window.navigate(4)
+        self.assertEqual(self.window.next_button.text(), "Next")
+        self.window.navigate(6)
         self.assertEqual(self.window.next_button.text(), "Finish")
         session = WelcomeWindow("en", {}, auto_scan=False, session=True)
-        session.navigate(5)
+        session.navigate(6)
         self.assertEqual(session.next_button.text(), "Start Eduka-Desktop")
         session.deleteLater()
 
@@ -114,6 +117,57 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(self.window.zone_combo.itemData(0), "Asia/Dili")
         self.window.zone_search.setText("no-such-zone")
         self.assertIsNone(self.window.selected_timezone())
+
+    def test_github_link_and_sponsor_placeholders(self):
+        self.assertEqual(self.window.project["github"], "https://github.com/hugomonizdorego")
+        sponsors = self.window.stack.widget(5).widget()
+        texts = [widget.text() for widget in sponsors.findChildren(QLabel)]
+        self.assertIn("Your logo here", texts)
+
+    def test_eduka_desktop_settings_saved_in_eduka_format(self):
+        home = Path(self.folder.name)
+        with patch("pathlib.Path.home", return_value=home), \
+                patch.dict(os.environ, {"XDG_RUNTIME_DIR": str(home / "run")}):
+            self.window.panel_height.setValue(50)
+            self.window.panel_transparency.setValue(80)
+            self.window.menu_label.setText("Eskola")
+            self.window.desktop_layout.setCurrentIndex(self.window.desktop_layout.findData("List"))
+            self.window.vision.setChecked(True)
+            panel, desktop, menu = self.window.eduka_values()
+            save_settings(panel, desktop, menu)
+            saved = read_settings()
+            self.assertTrue((home / "run/eduka-desktop/reload").is_file())
+        self.assertEqual(saved["panel"]["height"], 50)
+        self.assertEqual(saved["panel"]["transparency"], 0.8)
+        self.assertEqual(saved["panel"]["menu_label"], "Eskola")
+        self.assertEqual(saved["desktop"]["layout"], "List")
+        self.assertTrue(saved["desktop"]["visual_accessibility"])
+        self.assertEqual(saved["panel"]["_settings_revision"], "0.9.6-transparency")
+
+    def test_liquid_glass_refused_on_weak_hardware(self):
+        index = self.window.visual_theme.findData("Liquid Glass")
+        with patch("edukasaun_welcome.gui.liquid_glass_capability", return_value=(1.0, 1, False)), \
+                patch.object(QMessageBox, "warning") as warning:
+            self.window.visual_theme.setCurrentIndex(index)
+            warning.assert_called_once()
+        self.assertEqual(self.window.visual_theme.currentData(), "Eduka-Default-Theme")
+        with patch("edukasaun_welcome.gui.liquid_glass_capability", return_value=(8.0, 4, True)), \
+                patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+            self.window.visual_theme.setCurrentIndex(index)
+        self.assertEqual(self.window.visual_theme.currentData(), "Liquid Glass")
+        self.assertFalse(self.window.low_resource.isEnabled())
+
+    def test_sponsor_entries(self):
+        from edukasaun_welcome.gui import sponsor_entry
+        with tempfile.TemporaryDirectory() as folder:
+            (Path(folder) / "logo.png").write_bytes(b"fixture")
+            entry = sponsor_entry({"name": "Fixture", "logo": "../../logo.png", "url": "https://example.org"},
+                                  [Path(folder)])
+            self.assertEqual(entry["logo"], Path(folder) / "logo.png")
+            self.assertEqual(sponsor_entry({"name": "X", "url": "http://insecure"})["url"], "")
+            self.assertEqual(sponsor_entry("Plain name")["name"], "Plain name")
+            self.assertIsNone(sponsor_entry({"logo": "a.png"}))
+            self.assertIsNone(sponsor_entry({"name": "Y", "logo": "a.sh"}, [Path(folder)])["logo"])
 
     def test_clock_format_is_saved(self):
         self.window.clock_format.setCurrentIndex(1)
