@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Edukasaun OS</vendor>
+  <vendor_url>https://www.edukasaunos.tl</vendor_url>
+  <action id="org.edukasaun.welcome.install">
+    <description>Install selected learning applications</description>
+    <message>Administrator authentication is required to install selected applications.</message>
+    <message xml:lang="pt">É necessária autenticação administrativa para instalar as aplicações selecionadas.</message>
+    <message xml:lang="id">Autentikasi administrator diperlukan untuk memasang aplikasi yang dipilih.</message>
+    <message xml:lang="tet">Presiza autentikasaun administradór atu instala aplikasaun selecionadu.</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/lib/edukasaun-welcome/admin-helper</annotate>
+  </action>
+</policyconfig>

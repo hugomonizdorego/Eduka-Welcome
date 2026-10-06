@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Edukasaun Welcome
+Exec=edukasaun-welcome --autostart
+Icon=edukasaun-welcome
+Terminal=false
+OnlyShowIn=LXQt;
+X-LXQt-Need-Tray=false

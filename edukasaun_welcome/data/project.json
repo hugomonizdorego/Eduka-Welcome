@@ -1,0 +1,23 @@
+{
+  "website": "https://www.edukasaunos.tl",
+  "facebook": "https://www.facebook.com/EdukasaunOS",
+  "whatsapp": "https://whatsapp.com/channel/0029VbD0yQkEawdnnSeAHK46",
+  "github": "",
+  "paypal": "https://paypal.me/hugocenturion0311",
+  "developers": [],
+  "sponsors": [],
+  "partners": [],
+  "suite_tools": {
+    "appearance": [
+      "lxqt-config-appearance"
+    ],
+    "desktop": [
+      "pcmanfm-qt",
+      "--desktop-pref"
+    ],
+    "effects": [
+      "lxqt-config-session"
+    ],
+    "suite": []
+  }
+}

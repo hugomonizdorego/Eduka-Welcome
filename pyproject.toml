@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edukasaun-welcome"
+version = "0.1.0"
+description = "Native localized first-run assistant for Edukasaun OS"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "GPL-3.0-or-later"}
+dependencies = ["PyQt6>=6.4,<7"]
+
+[project.scripts]
+edukasaun-welcome = "edukasaun_welcome.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["edukasaun_welcome*"]
+
+[tool.setuptools.package-data]
+edukasaun_welcome = ["locales/*.json", "data/*.json", "data/*.svg"]

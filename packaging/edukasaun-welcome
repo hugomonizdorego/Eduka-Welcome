@@ -1,0 +1,6 @@
+#!/usr/bin/python3 -I
+"""Use the installed, root-owned application rather than the current directory."""
+import sys
+sys.path.insert(0, "/usr/lib/edukasaun-welcome")
+from edukasaun_welcome.__main__ import main
+sys.exit(main())

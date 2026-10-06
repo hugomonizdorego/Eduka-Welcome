@@ -1,0 +1,965 @@
+{
+  "schema": 1,
+  "shipped_families": [
+    "2048",
+    "abacus",
+    "blinken",
+    "bovo",
+    "duolingo",
+    "filius",
+    "fretboard",
+    "gcompris",
+    "goldendict-ng",
+    "hex-a-hop",
+    "kalzium",
+    "kanagram",
+    "katomic",
+    "kblocks",
+    "kbruch",
+    "marble",
+    "kgeography",
+    "khangman",
+    "kiwix",
+    "klettres",
+    "knetwalk",
+    "ktuberling",
+    "kubrick",
+    "math-hurdler",
+    "music-keyboard",
+    "numptyphysics",
+    "palapeli",
+    "swift-feet",
+    "tetun-resources",
+    "trivia-quiz",
+    "turbowarp",
+    "tuxmath",
+    "tuxpaint",
+    "tuxpaint-config",
+    "tuxtype",
+    "words",
+    "coulr",
+    "gimp",
+    "imagemagick",
+    "inkscape",
+    "krita",
+    "lximage-qt",
+    "screengrab",
+    "xsane",
+    "dialect",
+    "firefox",
+    "google-earth",
+    "icon-browser",
+    "thunderbird",
+    "whatsapp-linux",
+    "wike",
+    "zoom",
+    "feathernotes",
+    "onlyoffice",
+    "qpdfview",
+    "audacious",
+    "pavucontrol",
+    "vlc"
+  ],
+  "apps": [
+    {
+      "id": "chromium",
+      "name": "Chromium",
+      "category": "internetMail",
+      "description": "purposeBrowser",
+      "sources": {
+        "apt": "chromium",
+        "flatpak": "org.chromium.Chromium"
+      },
+      "detect": {
+        "packages": [
+          "chromium",
+          "chromium-browser"
+        ],
+        "flatpaks": [
+          "org.chromium.Chromium"
+        ],
+        "desktop_ids": [
+          "chromium",
+          "org.chromium.Chromium"
+        ],
+        "executables": [
+          "chromium"
+        ]
+      }
+    },
+    {
+      "id": "epiphany",
+      "name": "GNOME Web",
+      "category": "internetMail",
+      "description": "purposeBrowser",
+      "sources": {
+        "apt": "epiphany-browser",
+        "flatpak": "org.gnome.Epiphany"
+      },
+      "detect": {
+        "packages": [
+          "epiphany-browser"
+        ],
+        "flatpaks": [
+          "org.gnome.Epiphany"
+        ],
+        "desktop_ids": [
+          "org.gnome.Epiphany",
+          "epiphany",
+          "epiphany-browser"
+        ],
+        "executables": [
+          "epiphany"
+        ]
+      }
+    },
+    {
+      "id": "falkon",
+      "name": "Falkon",
+      "category": "internetMail",
+      "description": "purposeBrowser",
+      "sources": {
+        "apt": "falkon",
+        "flatpak": "org.kde.falkon"
+      },
+      "detect": {
+        "packages": [
+          "falkon"
+        ],
+        "flatpaks": [
+          "org.kde.falkon"
+        ],
+        "desktop_ids": [
+          "org.kde.falkon",
+          "falkon"
+        ],
+        "executables": [
+          "falkon"
+        ]
+      }
+    },
+    {
+      "id": "geary",
+      "name": "Geary",
+      "category": "internetMail",
+      "description": "purposeMail",
+      "sources": {
+        "apt": "geary",
+        "flatpak": "org.gnome.Geary"
+      },
+      "detect": {
+        "packages": [
+          "geary"
+        ],
+        "flatpaks": [
+          "org.gnome.Geary"
+        ],
+        "desktop_ids": [
+          "org.gnome.Geary",
+          "geary"
+        ],
+        "executables": [
+          "geary"
+        ]
+      }
+    },
+    {
+      "id": "claws-mail",
+      "name": "Claws Mail",
+      "category": "internetMail",
+      "description": "purposeMail",
+      "sources": {
+        "apt": "claws-mail"
+      },
+      "detect": {
+        "packages": [
+          "claws-mail"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "claws-mail"
+        ],
+        "executables": [
+          "claws-mail"
+        ]
+      }
+    },
+    {
+      "id": "libreoffice",
+      "name": "LibreOffice",
+      "category": "officeDocuments",
+      "description": "purposeOffice",
+      "sources": {
+        "apt": "libreoffice",
+        "flatpak": "org.libreoffice.LibreOffice"
+      },
+      "detect": {
+        "packages": [
+          "libreoffice",
+          "libreoffice-writer",
+          "libreoffice-calc",
+          "libreoffice-impress"
+        ],
+        "flatpaks": [
+          "org.libreoffice.LibreOffice"
+        ],
+        "desktop_ids": [
+          "org.libreoffice.LibreOffice",
+          "libreoffice"
+        ],
+        "executables": [
+          "libreoffice",
+          "soffice"
+        ]
+      }
+    },
+    {
+      "id": "abiword",
+      "name": "AbiWord",
+      "category": "officeDocuments",
+      "description": "purposeWord",
+      "sources": {
+        "apt": "abiword"
+      },
+      "detect": {
+        "packages": [
+          "abiword"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "abiword"
+        ],
+        "executables": [
+          "abiword"
+        ]
+      }
+    },
+    {
+      "id": "gnumeric",
+      "name": "Gnumeric",
+      "category": "officeDocuments",
+      "description": "purposeSheet",
+      "sources": {
+        "apt": "gnumeric"
+      },
+      "detect": {
+        "packages": [
+          "gnumeric"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "gnumeric"
+        ],
+        "executables": [
+          "gnumeric"
+        ]
+      }
+    },
+    {
+      "id": "xournalpp",
+      "name": "Xournal++",
+      "category": "officeDocuments",
+      "description": "purposeNotes",
+      "sources": {
+        "apt": "xournalpp",
+        "flatpak": "com.github.xournalpp.xournalpp"
+      },
+      "detect": {
+        "packages": [
+          "xournalpp"
+        ],
+        "flatpaks": [
+          "com.github.xournalpp.xournalpp"
+        ],
+        "desktop_ids": [
+          "xournalpp",
+          "com.github.xournalpp.xournalpp"
+        ],
+        "executables": [
+          "xournalpp"
+        ]
+      }
+    },
+    {
+      "id": "foliate",
+      "name": "Foliate",
+      "category": "officeDocuments",
+      "description": "purposeEbook",
+      "sources": {
+        "flatpak": "com.github.johnfactotum.Foliate"
+      },
+      "detect": {
+        "packages": [],
+        "flatpaks": [
+          "com.github.johnfactotum.Foliate"
+        ],
+        "desktop_ids": [
+          "foliate",
+          "com.github.johnfactotum.Foliate"
+        ],
+        "executables": [
+          "foliate"
+        ]
+      }
+    },
+    {
+      "id": "mpv",
+      "name": "MPV",
+      "category": "audioVideo",
+      "description": "purposePlayback",
+      "sources": {
+        "apt": "mpv",
+        "flatpak": "io.mpv.Mpv"
+      },
+      "detect": {
+        "packages": [
+          "mpv"
+        ],
+        "flatpaks": [
+          "io.mpv.Mpv"
+        ],
+        "desktop_ids": [
+          "mpv",
+          "io.mpv.Mpv"
+        ],
+        "executables": [
+          "mpv"
+        ]
+      }
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "category": "audioVideo",
+      "description": "purposeAudio",
+      "sources": {
+        "apt": "audacity",
+        "flatpak": "org.audacityteam.Audacity"
+      },
+      "detect": {
+        "packages": [
+          "audacity"
+        ],
+        "flatpaks": [
+          "org.audacityteam.Audacity"
+        ],
+        "desktop_ids": [
+          "audacity",
+          "org.audacityteam.Audacity"
+        ],
+        "executables": [
+          "audacity"
+        ]
+      }
+    },
+    {
+      "id": "kdenlive",
+      "name": "Kdenlive",
+      "category": "audioVideo",
+      "description": "purposeVideo",
+      "sources": {
+        "apt": "kdenlive",
+        "flatpak": "org.kde.kdenlive"
+      },
+      "detect": {
+        "packages": [
+          "kdenlive"
+        ],
+        "flatpaks": [
+          "org.kde.kdenlive"
+        ],
+        "desktop_ids": [
+          "kdenlive",
+          "org.kde.kdenlive"
+        ],
+        "executables": [
+          "kdenlive"
+        ]
+      }
+    },
+    {
+      "id": "obs-studio",
+      "name": "OBS Studio",
+      "category": "audioVideo",
+      "description": "purposeScreen",
+      "sources": {
+        "apt": "obs-studio",
+        "flatpak": "com.obsproject.Studio"
+      },
+      "detect": {
+        "packages": [
+          "obs-studio"
+        ],
+        "flatpaks": [
+          "com.obsproject.Studio"
+        ],
+        "desktop_ids": [
+          "obs-studio",
+          "com.obsproject.Studio"
+        ],
+        "executables": [
+          "obs"
+        ]
+      }
+    },
+    {
+      "id": "handbrake",
+      "name": "HandBrake",
+      "category": "audioVideo",
+      "description": "purposeConvert",
+      "sources": {
+        "apt": "handbrake",
+        "flatpak": "fr.handbrake.ghb"
+      },
+      "detect": {
+        "packages": [
+          "handbrake"
+        ],
+        "flatpaks": [
+          "fr.handbrake.ghb"
+        ],
+        "desktop_ids": [
+          "handbrake",
+          "fr.handbrake.ghb"
+        ],
+        "executables": [
+          "ghb",
+          "HandBrakeGUI"
+        ]
+      }
+    },
+    {
+      "id": "shotcut",
+      "name": "Shotcut",
+      "category": "audioVideo",
+      "description": "purposeVideo",
+      "sources": {
+        "apt": "shotcut",
+        "flatpak": "org.shotcut.Shotcut"
+      },
+      "detect": {
+        "packages": [
+          "shotcut"
+        ],
+        "flatpaks": [
+          "org.shotcut.Shotcut"
+        ],
+        "desktop_ids": [
+          "org.shotcut.Shotcut",
+          "shotcut"
+        ],
+        "executables": [
+          "shotcut"
+        ]
+      }
+    },
+    {
+      "id": "gnome-chess",
+      "name": "GNOME Chess",
+      "category": "educationGames",
+      "description": "purposeChess",
+      "sources": {
+        "apt": "gnome-chess",
+        "flatpak": "org.gnome.Chess"
+      },
+      "detect": {
+        "packages": [
+          "gnome-chess"
+        ],
+        "flatpaks": [
+          "org.gnome.Chess"
+        ],
+        "desktop_ids": [
+          "gnome-chess",
+          "org.gnome.Chess"
+        ],
+        "executables": [
+          "gnome-chess"
+        ]
+      }
+    },
+    {
+      "id": "stellarium",
+      "name": "Stellarium",
+      "category": "educationGames",
+      "description": "purposeAstronomy",
+      "sources": {
+        "apt": "stellarium",
+        "flatpak": "org.stellarium.Stellarium"
+      },
+      "detect": {
+        "packages": [
+          "stellarium"
+        ],
+        "flatpaks": [
+          "org.stellarium.Stellarium"
+        ],
+        "desktop_ids": [
+          "stellarium",
+          "org.stellarium.Stellarium"
+        ],
+        "executables": [
+          "stellarium"
+        ]
+      }
+    },
+    {
+      "id": "ktouch",
+      "name": "KTouch",
+      "category": "educationGames",
+      "description": "purposeTyping",
+      "sources": {
+        "apt": "ktouch",
+        "flatpak": "org.kde.ktouch"
+      },
+      "detect": {
+        "packages": [
+          "ktouch"
+        ],
+        "flatpaks": [
+          "org.kde.ktouch"
+        ],
+        "desktop_ids": [
+          "ktouch",
+          "org.kde.ktouch"
+        ],
+        "executables": [
+          "ktouch"
+        ]
+      }
+    },
+    {
+      "id": "kalgebra",
+      "name": "KAlgebra",
+      "category": "educationGames",
+      "description": "purposeAlgebra",
+      "sources": {
+        "apt": "kalgebra",
+        "flatpak": "org.kde.kalgebra"
+      },
+      "detect": {
+        "packages": [
+          "kalgebra"
+        ],
+        "flatpaks": [
+          "org.kde.kalgebra"
+        ],
+        "desktop_ids": [
+          "org.kde.kalgebra",
+          "kalgebra"
+        ],
+        "executables": [
+          "kalgebra"
+        ]
+      }
+    },
+    {
+      "id": "cantor",
+      "name": "Cantor",
+      "category": "educationGames",
+      "description": "purposeMathLab",
+      "sources": {
+        "apt": "cantor",
+        "flatpak": "org.kde.cantor"
+      },
+      "detect": {
+        "packages": [
+          "cantor"
+        ],
+        "flatpaks": [
+          "org.kde.cantor"
+        ],
+        "desktop_ids": [
+          "cantor",
+          "org.kde.cantor"
+        ],
+        "executables": [
+          "cantor"
+        ]
+      }
+    },
+    {
+      "id": "scribus",
+      "name": "Scribus",
+      "category": "graphicsDesign",
+      "description": "purposeLayout",
+      "sources": {
+        "apt": "scribus",
+        "flatpak": "net.scribus.Scribus"
+      },
+      "detect": {
+        "packages": [
+          "scribus"
+        ],
+        "flatpaks": [
+          "net.scribus.Scribus"
+        ],
+        "desktop_ids": [
+          "scribus",
+          "net.scribus.Scribus"
+        ],
+        "executables": [
+          "scribus"
+        ]
+      }
+    },
+    {
+      "id": "blender",
+      "name": "Blender",
+      "category": "graphicsDesign",
+      "description": "purpose3d",
+      "sources": {
+        "apt": "blender",
+        "flatpak": "org.blender.Blender"
+      },
+      "detect": {
+        "packages": [
+          "blender"
+        ],
+        "flatpaks": [
+          "org.blender.Blender"
+        ],
+        "desktop_ids": [
+          "org.blender.Blender",
+          "blender"
+        ],
+        "executables": [
+          "blender"
+        ]
+      }
+    },
+    {
+      "id": "synfigstudio",
+      "name": "Synfig Studio",
+      "category": "graphicsDesign",
+      "description": "purposeAnimation",
+      "sources": {
+        "apt": "synfigstudio",
+        "flatpak": "org.synfig.SynfigStudio"
+      },
+      "detect": {
+        "packages": [
+          "synfigstudio"
+        ],
+        "flatpaks": [
+          "org.synfig.SynfigStudio"
+        ],
+        "desktop_ids": [
+          "synfigstudio",
+          "org.synfig.SynfigStudio"
+        ],
+        "executables": [
+          "synfigstudio"
+        ]
+      }
+    },
+    {
+      "id": "gparted",
+      "name": "GParted",
+      "category": "systemTools",
+      "description": "purposePartition",
+      "sources": {
+        "apt": "gparted"
+      },
+      "detect": {
+        "packages": [
+          "gparted"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "gparted"
+        ],
+        "executables": [
+          "gparted"
+        ]
+      }
+    },
+    {
+      "id": "timeshift",
+      "name": "Timeshift",
+      "category": "systemTools",
+      "description": "purposeBackup",
+      "sources": {
+        "apt": "timeshift"
+      },
+      "detect": {
+        "packages": [
+          "timeshift"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "timeshift"
+        ],
+        "executables": [
+          "timeshift"
+        ]
+      }
+    },
+    {
+      "id": "synaptic",
+      "name": "Synaptic",
+      "category": "systemTools",
+      "description": "purposePackages",
+      "sources": {
+        "apt": "synaptic"
+      },
+      "detect": {
+        "packages": [
+          "synaptic"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "synaptic"
+        ],
+        "executables": [
+          "synaptic"
+        ]
+      }
+    },
+    {
+      "id": "btop",
+      "name": "Btop",
+      "category": "systemTools",
+      "description": "purposeMonitor",
+      "sources": {
+        "apt": "btop"
+      },
+      "detect": {
+        "packages": [
+          "btop"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "btop"
+        ],
+        "executables": [
+          "btop"
+        ]
+      }
+    },
+    {
+      "id": "htop",
+      "name": "Htop",
+      "category": "systemTools",
+      "description": "purposeMonitor",
+      "sources": {
+        "apt": "htop"
+      },
+      "detect": {
+        "packages": [
+          "htop"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "htop"
+        ],
+        "executables": [
+          "htop"
+        ]
+      }
+    },
+    {
+      "id": "fastfetch",
+      "name": "Fastfetch",
+      "category": "systemTools",
+      "description": "purposeHardware",
+      "sources": {
+        "apt": "fastfetch"
+      },
+      "detect": {
+        "packages": [
+          "fastfetch"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "fastfetch"
+        ],
+        "executables": [
+          "fastfetch"
+        ]
+      }
+    },
+    {
+      "id": "gufw",
+      "name": "GUFW",
+      "category": "systemTools",
+      "description": "purposeFirewall",
+      "sources": {
+        "apt": "gufw"
+      },
+      "detect": {
+        "packages": [
+          "gufw"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "gufw"
+        ],
+        "executables": [
+          "gufw"
+        ]
+      }
+    },
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "category": "systemTools",
+      "description": "purposeArchive",
+      "sources": {
+        "apt": "7zip"
+      },
+      "detect": {
+        "packages": [
+          "7zip"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "7zip"
+        ],
+        "executables": [
+          "7zz",
+          "7z"
+        ]
+      }
+    },
+    {
+      "id": "unrar-free",
+      "name": "UnRAR Free",
+      "category": "systemTools",
+      "description": "purposeRar",
+      "sources": {
+        "apt": "unrar-free"
+      },
+      "detect": {
+        "packages": [
+          "unrar-free"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "unrar-free"
+        ],
+        "executables": [
+          "unrar-free",
+          "unrar"
+        ]
+      }
+    },
+    {
+      "id": "git",
+      "name": "Git",
+      "category": "developmentTools",
+      "description": "purposeGit",
+      "sources": {
+        "apt": "git"
+      },
+      "detect": {
+        "packages": [
+          "git"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "git"
+        ],
+        "executables": [
+          "git"
+        ]
+      }
+    },
+    {
+      "id": "geany",
+      "name": "Geany",
+      "category": "developmentTools",
+      "description": "purposeCode",
+      "sources": {
+        "apt": "geany",
+        "flatpak": "org.geany.Geany"
+      },
+      "detect": {
+        "packages": [
+          "geany"
+        ],
+        "flatpaks": [
+          "org.geany.Geany"
+        ],
+        "desktop_ids": [
+          "geany",
+          "org.geany.Geany"
+        ],
+        "executables": [
+          "geany"
+        ]
+      }
+    },
+    {
+      "id": "thonny",
+      "name": "Thonny",
+      "category": "developmentTools",
+      "description": "purposePython",
+      "sources": {
+        "apt": "thonny",
+        "flatpak": "org.thonny.Thonny"
+      },
+      "detect": {
+        "packages": [
+          "thonny"
+        ],
+        "flatpaks": [
+          "org.thonny.Thonny"
+        ],
+        "desktop_ids": [
+          "thonny",
+          "org.thonny.Thonny"
+        ],
+        "executables": [
+          "thonny"
+        ]
+      }
+    },
+    {
+      "id": "orca",
+      "name": "Orca",
+      "category": "accessibility",
+      "description": "purposeAccess",
+      "sources": {
+        "apt": "orca"
+      },
+      "detect": {
+        "packages": [
+          "orca"
+        ],
+        "flatpaks": [],
+        "desktop_ids": [
+          "orca"
+        ],
+        "executables": [
+          "orca"
+        ]
+      }
+    },
+    {
+      "id": "brave",
+      "name": "Brave",
+      "category": "internetMail",
+      "description": "purposeBrowser",
+      "sources": {
+        "brave": "brave-browser"
+      },
+      "detect": {
+        "packages": [
+          "brave-browser"
+        ],
+        "flatpaks": [
+          "com.brave.Browser"
+        ],
+        "desktop_ids": [
+          "brave",
+          "com.brave.Browser"
+        ],
+        "executables": [
+          "brave-browser",
+          "brave"
+        ]
+      }
+    }
+  ]
+}
