@@ -4,10 +4,12 @@ Section: education
 Priority: optional
 Architecture: all
 Maintainer: Edukasaun OS Maintainers <maintainers@edukasaun.invalid>
-Depends: python3 (>= 3.11), python3-pyqt6, pkexec, ca-certificates, apt
+Depends: python3 (>= 3.11), python3-pyqt6, pkexec, ca-certificates, apt, systemd, tzdata
 Recommends: lxqt-config, pcmanfm-qt, lxqt-policykit, flatpak, fonts-noto-core, fonts-noto-cjk
 Homepage: https://www.edukasaunos.tl
-Description: localized first-run assistant for Edukasaun OS
- Six-page native Qt welcome assistant with desktop customization,
+Description: Welcome Screen for Edukasaun OS
+ Six-page native Qt Welcome Screen shown after installation, before
+ Eduka-Desktop starts: date, time and time zone (Asia/Dili first),
+ Eduka-Desktop Suite overview, desktop customization,
  installed application detection, optional application installation,
  project information and community links.

@@ -26,4 +26,4 @@ cp "$project_root/packaging/control" "$staging_dir/DEBIAN/control"
 find "$staging_dir" -type d -exec chmod 755 {} +
 find "$staging_dir" -type f -exec chmod 644 {} +
 chmod 755 "$staging_dir/usr/bin/edukasaun-welcome" "$staging_dir/usr/lib/edukasaun-welcome/admin-helper"
-dpkg-deb --root-owner-group --build "$staging_dir" "$output_dir/edukasaun-welcome_0.1.0_all.deb"
+dpkg-deb --root-owner-group --build "$staging_dir" "$output_dir/edukasaun-welcome_dev_all.deb"

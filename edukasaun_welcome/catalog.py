@@ -2,12 +2,25 @@
 import json
 from pathlib import Path
 from .inventory import is_installed
+from .preferences import config_home
 
 DATA = Path(__file__).parent / "data"
 
 
 def load_catalog():
     return json.loads((DATA / "catalog.json").read_text(encoding="utf-8"))
+
+
+def load_project():
+    """Packaged project settings, with optional per-user overrides for development."""
+    project = json.loads((DATA / "project.json").read_text(encoding="utf-8"))
+    overrides = config_home() / "edukasaun-welcome/project.json"
+    if overrides.is_file():
+        try:
+            project.update(json.loads(overrides.read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            pass
+    return project
 
 
 def recommendations(inventory, catalog=None):

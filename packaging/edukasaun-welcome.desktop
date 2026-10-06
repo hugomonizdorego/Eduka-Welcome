@@ -1,16 +1,10 @@
 [Desktop Entry]
 Type=Application
 Name=Edukasaun Welcome
-Name[tet]=Edukasaun Benvindu
-Name[pt]=Edukasaun Boas-vindas
-Name[id]=Edukasaun Selamat Datang
-Comment=Configure your desktop and discover additional learning tools
-Comment[tet]=Konfigura desktop no deskobre ferramenta aprendizajen adisionál
-Comment[pt]=Configure o ambiente de trabalho e descubra ferramentas educativas
-Comment[id]=Atur desktop dan temukan perangkat pembelajaran tambahan
+Comment=Set up date and time, the Eduka-Desktop Suite and learning applications
 Exec=edukasaun-welcome
 Icon=edukasaun-welcome
 Terminal=false
 Categories=Education;Settings;
 StartupNotify=true
-Keywords=Welcome;Education;Edukasaun;Desktop;
+Keywords=Welcome;Education;Edukasaun;Desktop;Time;Timezone;

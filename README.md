@@ -1,51 +1,86 @@
 # Edukasaun Welcome
 
-A native **Python / Qt 6** first-run assistant for **Edukasaun OS**, targeting Debian 13 (Trixie) and LXQt. This is version **0.1.0**, ready for source review and testing on an Edukasaun OS VM.
+The **Welcome Screen** for **Edukasaun OS** — a native **Python / Qt 6** application for Debian 13 (Trixie), LXQt and the **Eduka-Desktop Suite**.
+
+> **Development build.** This is work in progress and will keep being revised. The interface is English only and does not show a version number.
 
 ![Welcome page](docs/welcome-preview.png)
 
+## What the Welcome Screen does
+
+1. **Comes first.** At login, the Welcome Screen runs *before* Eduka-Desktop. When the user finishes (or closes it), it starts Eduka-Desktop.
+2. **Only on an installed system.** On the live image nothing is shown: the session gate detects live boots (`boot=live` / `boot=casper` on the kernel command line, or a mounted live medium such as `/run/live/medium`) and starts Eduka-Desktop directly.
+3. **Every login until turned off.** "Show the Welcome Screen every time I log in" (on the last page) is checked by default. When unchecked, Eduka-Desktop starts directly. The Welcome Screen can still be opened from the application menu. Preferences are saved in `$XDG_CONFIG_HOME/edukasaun-welcome/preferences.json` (normally `~/.config/edukasaun-welcome/`).
+
+## Six pages
+
+| Page | Contents |
+| --- | --- |
+| 1. Welcome | Greetings from Timor-Leste & CPLP, ASEAN and around the world; overview of the setup steps; installed system name |
+| 2. Date & time | Time zone list that **always starts from Asia/Dili (Timor-Leste)**, search, live clock preview with UTC offset, 24/12-hour clock format, automatic time (NTP) or manual date and time, Apply |
+| 3. Eduka-Desktop Suite | Eduka-Desktop, Eduka-Menu, Eduka-Panel, Eduka-Menu-Settings; project tools EUS, Eduka-Konekta, Eduka-Block; About |
+| 4. Your desktop | Installed LXQt themes and icon themes, accent color, wallpaper, Apply; native appearance, desktop and session tools |
+| 5. Applications | Additional recommendations only; APT/Flatpak/Brave sources; pre-install rescan; authentication, live output and inventory export |
+| 6. Community & finish | Website, Facebook, WhatsApp, GitHub; goals; credits; optional PayPal donation; startup preference; **Start Eduka-Desktop** |
+
+Every page after the first has Back. All settings are optional; Next skips them.
+
+## Session gate: Welcome Screen first, then Eduka-Desktop
+
+The package installs `/etc/xdg/autostart/edukasaun-welcome.desktop`, which runs:
+
+```bash
+edukasaun-welcome --session
+```
+
+| Situation | Result |
+| --- | --- |
+| Live system | No Welcome Screen; Eduka-Desktop is started |
+| Installed system, Welcome Screen enabled | Welcome Screen (maximized); Eduka-Desktop starts when it closes |
+| Installed system, Welcome Screen turned off | Eduka-Desktop is started immediately |
+
+The Eduka-Desktop command is configured in `edukasaun_welcome/data/project.json`:
+
+```json
+"eduka_desktop": { "command": ["eduka-desktop"], "process": "eduka-desktop" }
+```
+
+It is started only if it is installed and not already running. **For the Welcome Screen to really appear first, the Edukasaun OS image should start Eduka-Desktop through this gate** (remove or disable Eduka-Desktop's own autostart entry). Replace `eduka-desktop` with the actual Eduka-Desktop executable if it differs.
+
+Manually launching `edukasaun-welcome` on the live system prints a notice and exits. Developers can preview it there with `edukasaun-welcome --force`.
+
+## Date and time
+
+- The list contains every IANA time zone from the system `tzdata`, with **Asia/Dili — Timor-Leste first and selected by default**, followed by the rest alphabetically and `UTC`.
+- Apply runs `timedatectl set-timezone`, `timedatectl set-ntp` and, for manual time, `timedatectl set-time`, as argument vectors (no shell). systemd-timedated asks PolicyKit for administrator authentication.
+- Only zones from the list are accepted.
+- The 24/12-hour choice is saved as `clock_24h` in the user preferences so Eduka-Panel can use it later; it does not change the system clock.
+
 ## Run or install
 
-From the extracted source directory on Edukasaun OS:
+On Edukasaun OS:
 
 ```bash
 chmod +x scripts/*.sh
 ./scripts/install.sh
-edukasaun-welcome
 ```
 
-The installer builds a Debian package, refreshes APT indexes and installs **only this application and its dependencies**. It does not upgrade the operating system. A normal administrator prompt is used when needed.
-
-Alternatively, install the included prebuilt package:
-
-```bash
-sudo apt install ./dist/edukasaun-welcome_0.1.0_all.deb
-```
+The installer builds a Debian package (`dist/edukasaun-welcome_dev_all.deb`), refreshes APT indexes and installs **only this application and its dependencies**. It does not upgrade the operating system.
 
 For development without a system installation:
 
 ```bash
 sudo apt install python3-pyqt6
-./scripts/run.sh
-./scripts/run.sh --language tet
+./scripts/run.sh            # normal window
+./scripts/run.sh --session  # login gate behavior
+./scripts/run.sh --force    # preview on the live system
 ```
 
-The development UI can scan applications and edit the current user's supported LXQt settings. APT application installation requires the system package, which installs the root-owned helper and PolicyKit action. Do not run the UI as root. A pip installation provides a development launcher, not the privileged system integration.
+APT application installation requires the system package, which installs the root-owned helper and PolicyKit action. Do not run the UI as root.
 
-## Six pages
+## Language
 
-The requested specification says five pages but describes six separate screens. This implementation retains all six:
-
-| Page | Contents |
-| --- | --- |
-| 1. Welcome | International, Portuguese/CPLP and ASEAN greetings; checked startup preference; Next |
-| 2. Discover | Edukasaun OS; Eduka-Desktop, Menu, Panel and Menu-Settings explanations; related project tools; developers, sponsors, partners; About |
-| 3. Desktop | Installed LXQt themes and icon themes, accent color, wallpaper, Apply; native cursor/font/color settings and session/effects tools |
-| 4. Applications | Additional recommendations only; APT/Flatpak/Brave source choices; pre-install rescan; authentication, live output and inventory export |
-| 5. Community | Website, Facebook, WhatsApp, configurable GitHub link and project goals |
-| 6. Ready | Thank-you message, optional PayPal donation and Close |
-
-Every page after the first has Back. Next can skip optional desktop changes or application installation. Donation is optional.
+During development the whole interface is **English**. The earlier Tetun, Portuguese and Indonesian dictionaries are kept under `edukasaun_welcome/locales/` for later work; they contain only strings whose English source did not change and fall back to English for everything else. Translators can test them with `--language tet|pt|id`.
 
 ## Existing applications are excluded
 
@@ -64,14 +99,6 @@ There are **38 alternative application families**, including Chromium, GNOME Web
 
 Debian's Chromium package is **`chromium`**, not `chromium-browser`. The latter is accepted only as an installed-package detection alias. Brave uses its official signed APT repository, with a separate consent checkbox. No downloaded shell script is piped into a shell.
 
-## Localization and startup
-
-English is the source language. Full UI dictionaries are included for **English, Tetun, Portuguese and Indonesian**. The default is **Follow system**: `LC_ALL`, `LC_MESSAGES`, `LANG`, and GNU `LANGUAGE` preferences are respected. Tetun is explicitly supported even when Qt does not recognize `tet_TL`.
-
-Other system languages fall back to English; international greeting strings do not imply complete UI translations for those languages. Additional translations can be added under `edukasaun_welcome/locales/` and registered in `i18n.py`. Tetun terminology should receive a native-speaker review before a stable release.
-
-“Always show Welcome Screen” defaults to checked. Its value and language override are saved in `$XDG_CONFIG_HOME/edukasaun-welcome/preferences.json` (normally `~/.config/edukasaun-welcome/`). A per-user freedesktop autostart entry implements opt-in/opt-out; manually launching from the menu still works. System autostart is limited to LXQt sessions.
-
 ## Project credits and links
 
 Edit `edukasaun_welcome/data/project.json` before publishing. **Developer, sponsor and partner lists are deliberately empty**, and the official GitHub link is blank until the maintainer supplies approved values. The disabled GitHub button becomes active when configured.
@@ -87,13 +114,13 @@ For a per-user override, create `~/.config/edukasaun-welcome/project.json` conta
 }
 ```
 
-The donation link is `https://paypal.me/hugocenturion0311`. Verify the configured project website and social links before release. Optional integration commands for native desktop tools are in `suite_tools`; supply the actual installed Eduka-Menu-Settings command rather than guessing an executable name.
+The donation link is `https://paypal.me/hugocenturion0311`. Verify the configured project website and social links before release. Optional integration commands for native desktop tools are in `suite_tools`; put the actual Eduka-Menu-Settings command in `suite_tools.suite` to enable the "Open Eduka-Menu-Settings" button.
 
 ## Desktop behavior
 
 Apply updates only per-user LXQt `icon_theme`, `theme`, and `Palette/highlight_color` values when chosen. It uses Qt's INI serializer, preserves unrelated keys and backs up existing `lxqt.conf` under `~/.config/edukasaun-welcome/backups/`. Wallpaper is applied using `pcmanfm-qt --set-wallpaper ... --wallpaper-mode zoom`. A failed wallpaper command restores the saved LXQt configuration; it cannot undo an external desktop process that partially changes its own state.
 
-Cursor, fonts, the complete color palette and GTK synchronization are handled by **LXQt Appearance**, which has its own Apply button and native session handling. Compositor settings are opened through LXQt Session Settings; configure effects with the installed compositor's own tools. This release does not write undocumented Eduka-Desktop Suite or compositor settings. Reduced motion is a welcome preference; the wizard itself has no animated transitions. Some running applications may need reopening, and cursor/compositor changes can require a new session, especially under Wayland.
+Cursor, fonts, the complete color palette and GTK synchronization are handled by **LXQt Appearance**, which has its own Apply button and native session handling. Compositor settings are opened through LXQt Session Settings; configure effects with the installed compositor's own tools. This release does not write undocumented Eduka-Desktop Suite or compositor settings. Some running applications may need reopening, and cursor/compositor changes can require a new session, especially under Wayland.
 
 ## Build, test and remove
 
@@ -103,31 +130,16 @@ Cursor, fonts, the complete color palette and GTK synchronization are handled by
 ./scripts/uninstall.sh
 ```
 
-Tests use fixture inventories and an offscreen Qt application. They never install additional applications or alter the host's desktop configuration. See [docs/validation.md](docs/validation.md) for the completed checks and remaining VM release checks. GitHub Actions runs the same tests and builds the Debian package.
+Tests use fixture inventories, fixture live/installed boot information and an offscreen Qt application. They never install applications, change the system time or alter the host's desktop configuration. See [docs/validation.md](docs/validation.md).
 
-Export the complete current inventory from the target system without opening the GUI:
+Export the installed application inventory without opening the GUI:
 
 ```bash
 edukasaun-welcome --export-inventory edukasaun-installed-apps.json
 edukasaun-welcome --scan
 ```
 
-Uninstalling preserves user preferences and configuration backups. No application previously selected in the welcome wizard is removed.
-
-## Upload to GitHub
-
-Create an empty repository named **`edukasaun-welcome`**, then from this source directory:
-
-```bash
-git init
-git add .
-git commit -m "Add Edukasaun Welcome 0.1.0"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/edukasaun-welcome.git
-git push -u origin main
-```
-
-Replace `YOUR_USERNAME` with your account or organization. `dist/` is excluded from Git; attach the `.deb` to a GitHub release, or download the package built by Actions. Replace the placeholder maintainer contact in `packaging/control` with a real project address before distribution.
+Uninstalling preserves user preferences and configuration backups. No application previously selected in the Welcome Screen is removed.
 
 ## License
 

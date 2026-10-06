@@ -14,6 +14,9 @@ from edukasaun_welcome.catalog import load_catalog
 from edukasaun_welcome.gui import WelcomeWindow
 
 original_read = Path.read_text
+# Previews must look the same on any machine: fixed system time zone.
+import edukasaun_welcome.gui as gui
+gui.current_timezone = lambda: "Etc/UTC"
 
 
 def fixture_read(path, *args, **kwargs):
@@ -24,7 +27,7 @@ def fixture_read(path, *args, **kwargs):
 
 with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"XDG_CONFIG_HOME": folder}), patch.object(Path, "read_text", fixture_read):
     application = QApplication([])
-    window = WelcomeWindow("system", {}, auto_scan=False)
+    window = WelcomeWindow("en", {}, auto_scan=False, session=True)
     window.apps = load_catalog()["apps"]
     window.scanned = True
     window.availability = {app["id"]: True for app in window.apps}

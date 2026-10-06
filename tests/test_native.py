@@ -11,7 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_LOGGING_RULES", "qt.text.font.db=false")
 try:
     from PyQt6.QtCore import QSettings, Qt
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox
     from edukasaun_welcome.desktop import apply_desktop, current_settings
     from edukasaun_welcome.gui import WelcomeWindow
     QT_AVAILABLE = True
@@ -87,16 +87,48 @@ class NativeTests(unittest.TestCase):
         self.window.scanned = True
         self.window.populate_apps()
 
-    def test_six_pages_navigation_and_locale_switch(self):
+    def test_six_pages_navigation(self):
         self.assertEqual(self.window.stack.count(), 6)
         self.assertTrue(self.window.always.isChecked())
         self.assertFalse(self.window.back_button.isEnabled())
+        self.assertEqual(self.window.counter.text(), "Step 1 of 6")
         self.window.navigate(5)
-        self.assertEqual(self.window.next_button.text(), "Close")
-        self.window.locale_combo.setCurrentIndex(self.window.locale_combo.findData("tet"))
-        self.assertEqual(self.window.stack.currentIndex(), 5)
-        self.assertEqual(self.window.windowTitle(), "Edukasaun Benvindu")
-        self.assertEqual(self.window.next_button.text(), "Taka")
+        self.assertEqual(self.window.next_button.text(), "Finish")
+        session = WelcomeWindow("en", {}, auto_scan=False, session=True)
+        session.navigate(5)
+        self.assertEqual(session.next_button.text(), "Start Eduka-Desktop")
+        session.deleteLater()
+
+    def test_no_version_number_in_interface(self):
+        from edukasaun_welcome import __version__
+        texts = [widget.text() for widget in self.window.findChildren(QLabel)]
+        self.assertFalse([text for text in texts if __version__ in text])
+
+    def test_timezone_starts_from_dili_and_filters(self):
+        self.assertEqual(self.window.zone_combo.itemData(0), "Asia/Dili")
+        self.assertEqual(self.window.selected_timezone(), "Asia/Dili")
+        self.assertIn("Timor-Leste", self.window.zone_combo.itemText(0))
+        self.window.zone_search.setText("lisbon")
+        self.assertEqual(self.window.selected_timezone(), "Europe/Lisbon")
+        self.window.zone_search.setText("")
+        self.assertEqual(self.window.zone_combo.itemData(0), "Asia/Dili")
+        self.window.zone_search.setText("no-such-zone")
+        self.assertIsNone(self.window.selected_timezone())
+
+    def test_clock_format_is_saved(self):
+        self.window.clock_format.setCurrentIndex(1)
+        self.assertFalse(self.window.preferences["clock_24h"])
+        self.assertRegex(self.window.clock_label.text(), r"(AM|PM)$")
+
+    def test_session_close_starts_desktop(self):
+        session = WelcomeWindow("en", {}, auto_scan=False, session=True)
+        with patch("edukasaun_welcome.gui.start_desktop") as start:
+            session.close()
+            start.assert_called_once_with(session.project["eduka_desktop"])
+        with patch("edukasaun_welcome.gui.start_desktop") as start:
+            self.window.close()
+            start.assert_not_called()
+        session.deleteLater()
 
     def test_selection_maps_to_catalog_and_clear_on_filter(self):
         self.fixture_apps()
@@ -119,10 +151,8 @@ class NativeTests(unittest.TestCase):
 
     def test_qprocess_success_and_failure(self):
         outcome = []
-        self.window.finish_install = lambda success: outcome.append(success)
         for command, expected in [(["/bin/true"], True), (["/bin/false"], False), (["/nonexistent/fixture-command"], False)]:
-            self.window.commands = [command]
-            self.window.run_next_command()
+            self.window.run_commands([command], self.window.log, outcome.append)
             deadline = time.monotonic() + 3
             while self.window.process and time.monotonic() < deadline:
                 self.application.processEvents()
@@ -131,9 +161,7 @@ class NativeTests(unittest.TestCase):
         self.assertIsNone(self.window.process)
 
     def test_live_process_output_is_read(self):
-        self.window.finish_install = lambda success: None
-        self.window.commands = [["/bin/echo", "fixture-output"]]
-        self.window.run_next_command()
+        self.window.run_commands([["/bin/echo", "fixture-output"]], self.window.log, lambda success: None)
         deadline = time.monotonic() + 3
         while self.window.process and time.monotonic() < deadline:
             self.application.processEvents()

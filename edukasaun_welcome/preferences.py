@@ -1,4 +1,4 @@
-"""Per-user preferences and freedesktop autostart opt-out."""
+"""Per-user preferences; the session gate reads them instead of hiding autostart."""
 import json
 import os
 from pathlib import Path
@@ -22,9 +22,11 @@ def save_preferences(values, root=None):
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(values, indent=2) + "\n", encoding="utf-8")
     temporary.replace(path)
-    autostart = root / "autostart/edukasaun-welcome.desktop"
-    autostart.parent.mkdir(parents=True, exist_ok=True)
-    autostart.write_text("[Desktop Entry]\nType=Application\nName=Edukasaun Welcome\n"
-                         "Exec=edukasaun-welcome --autostart\nIcon=edukasaun-welcome\n"
-                         "OnlyShowIn=LXQt;\nHidden=" +
-                         ("false" if values.get("always_show", True) else "true") + "\n", encoding="utf-8")
+    # Earlier development builds hid the autostart entry per user. The autostart entry
+    # now also starts Eduka-Desktop, so it must never be hidden.
+    legacy = root / "autostart/edukasaun-welcome.desktop"
+    try:
+        if "edukasaun-welcome --autostart" in legacy.read_text(encoding="utf-8"):
+            legacy.unlink()
+    except OSError:
+        pass

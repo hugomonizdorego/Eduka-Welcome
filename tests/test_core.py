@@ -31,12 +31,15 @@ class LocaleTests(unittest.TestCase):
         self.assertEqual(system_language({}), "en")
         self.assertEqual(Translator("unknown")("next"), "Next")
 
-    def test_translation_parity_and_formatting(self):
+    def test_translations_are_optional_subsets(self):
+        # English is the development UI; other dictionaries may lag behind and fall back to English.
         english = json.loads((LOCALES / "en.json").read_text())
         for language in SUPPORTED:
             messages = json.loads((LOCALES / (language + ".json")).read_text())
-            self.assertEqual(set(messages), set(english))
+            self.assertFalse(set(messages) - set(english))
             self.assertIn("3", Translator(language)("scanResult", count=3))
+            self.assertEqual(Translator(language)("stepCounter", current=2, total=6),
+                             messages.get("stepCounter", english["stepCounter"]).format(current=2, total=6))
             self.assertTrue(all(isinstance(value, str) and value for value in messages.values()))
 
 
@@ -149,15 +152,18 @@ class CatalogTests(unittest.TestCase):
 
 
 class PreferencesTests(unittest.TestCase):
-    def test_autostart_opt_in_and_opt_out(self):
+    def test_preference_saved_without_hiding_session_gate(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            save_preferences({"always_show": False, "language": "system"}, root)
-            path = root / "autostart/edukasaun-welcome.desktop"
-            self.assertIn("Hidden=true", path.read_text())
-            save_preferences({"always_show": True}, root)
-            self.assertIn("Hidden=false", path.read_text())
-            self.assertTrue(json.loads((root / "edukasaun-welcome/preferences.json").read_text())["always_show"])
+            legacy = root / "autostart/edukasaun-welcome.desktop"
+            legacy.parent.mkdir()
+            legacy.write_text("[Desktop Entry]\nExec=edukasaun-welcome --autostart\nHidden=true\n")
+            custom = root / "autostart/other.desktop"
+            custom.write_text("[Desktop Entry]\nExec=other\n")
+            save_preferences({"always_show": False}, root)
+            self.assertFalse(legacy.exists())
+            self.assertTrue(custom.exists())
+            self.assertFalse(json.loads((root / "edukasaun-welcome/preferences.json").read_text())["always_show"])
 
 
 if __name__ == "__main__":

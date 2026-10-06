@@ -1,44 +1,55 @@
-"""Native six-page welcome wizard; all package operations are asynchronous."""
-import json
-import os
+"""Native six-page Welcome Screen for Edukasaun OS; all system operations are asynchronous."""
 import shlex
 import shutil
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
-from PyQt6.QtCore import Qt, QThread, QTimer, QProcess, QUrl, pyqtSignal
+from zoneinfo import ZoneInfo
+from PyQt6.QtCore import QDateTime, QProcess, QThread, QTimer, Qt, QUrl, pyqtSignal
 from PyQt6.QtGui import QColor, QDesktopServices, QFontDatabase, QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QApplication, QCheckBox, QColorDialog, QComboBox, QDialog, QFileDialog,
-    QFormLayout, QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget,
-    QMessageBox, QPushButton, QScrollArea, QStackedWidget, QTableWidget,
-    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget, QHeaderView,
+    QApplication, QCheckBox, QColorDialog, QComboBox, QDateTimeEdit, QDialog, QFileDialog,
+    QFormLayout, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QListWidget, QMessageBox, QPushButton, QScrollArea, QStackedWidget, QTableWidget,
+    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
-from . import __version__
-from .catalog import DATA, load_catalog, recommendations, install_commands
+from .catalog import load_project, recommendations, install_commands
 from .desktop import apply_desktop, open_tool, theme_choices
 from .i18n import Translator
 from .inventory import Inventory, apt_available, scan_inventory, write_inventory
-from .preferences import load_preferences, save_preferences, config_home
+from .preferences import load_preferences, save_preferences
+from .session import start_desktop
+from .timesettings import (
+    DEFAULT_TIMEZONE, current_timezone, format_clock, time_commands, timezone_choices, utc_offset,
+)
+
+PAGES = ["stepWelcome", "stepTime", "stepSuite", "stepDesktop", "stepApps", "stepFinish"]
 
 STYLE = """
 QWidget { font-family: sans-serif; font-size: 14px; color: #173d37; }
-QWidget#shell { background: #f4faf7; }
-QWidget#page { background: #f4faf7; }
+QWidget#shell, QWidget#page { background: #f4faf7; }
 QFrame#rail { background: #0b6355; border-radius: 18px; }
 QFrame#rail QLabel { color: #ffffff; }
-QLabel#brand { font-size: 22px; font-weight: 700; }
+QLabel#brand { font-size: 24px; font-weight: 700; }
+QLabel#railNote { color: #bfe6d8; font-size: 12px; }
 QLabel#title { font-size: 30px; font-weight: 700; color: #0b6355; }
 QLabel#lead { color: #4d6963; font-size: 15px; }
-QLabel#eyebrow { color: #008c70; font-weight: 700; font-size: 12px; }
+QLabel#note { color: #5f7a74; font-size: 13px; }
+QLabel#eyebrow { color: #008c70; font-weight: 700; font-size: 12px; letter-spacing: 1px; }
+QLabel#hero { font-size: 26px; font-weight: 700; padding: 22px; color: #0b6355;
+              background: #dcf4e6; border-radius: 12px; }
+QLabel#clock { font-size: 22px; font-weight: 700; color: #0b6355; }
+QLabel#cardTitle { font-size: 16px; font-weight: 700; }
 QFrame#card { background: white; border: 1px solid #d7e7df; border-radius: 12px; }
 QPushButton { background: #ffffff; border: 1px solid #b9d2c7; border-radius: 8px; padding: 10px 16px; }
 QPushButton:hover { background: #e4f4ec; }
 QPushButton#primary { background: #00856e; color: white; border: 1px solid #00856e; font-weight: 700; }
 QPushButton#primary:hover { background: #006c59; }
 QPushButton:disabled { color: #768983; background: #edf2ef; }
-QComboBox, QLineEdit { border: 1px solid #bad2c7; border-radius: 6px; background: white; padding: 8px; }
+QComboBox, QLineEdit, QDateTimeEdit { border: 1px solid #bad2c7; border-radius: 6px;
+                                      background: white; padding: 8px; }
 QListWidget { background: transparent; border: 0; color: white; outline: 0; }
-QListWidget::item { padding: 15px 8px; border-radius: 8px; }
+QListWidget::item { padding: 14px 8px; border-radius: 8px; }
 QListWidget::item:selected { background: #208771; color: white; }
 QTableWidget { background: white; border: 1px solid #d7e7df; border-radius: 6px; gridline-color: #e5efea; }
 QHeaderView::section { background: #e7f3ed; border: 0; padding: 9px; font-weight: 700; }
@@ -96,19 +107,23 @@ def script_greeting(script, romanized, writing_system):
     return script if writing_system in QFontDatabase.writingSystems() else romanized
 
 
+def os_release(path="/etc/os-release"):
+    try:
+        text = Path(path).read_text()
+    except OSError:
+        return ""
+    fields = dict(line.split("=", 1) for line in text.splitlines()
+                  if "=" in line and not line.startswith("#"))
+    return fields.get("PRETTY_NAME", "").strip('"')
+
+
 class WelcomeWindow(QWidget):
-    def __init__(self, language="system", preferences=None, auto_scan=True):
+    def __init__(self, language="en", preferences=None, auto_scan=True, session=False):
         super().__init__()
         self.preferences = preferences if preferences is not None else load_preferences()
-        self.language = language
         self.t = Translator(language)
-        self.project = json.loads((DATA / "project.json").read_text(encoding="utf-8"))
-        overrides = config_home() / "edukasaun-welcome/project.json"
-        if overrides.is_file():
-            try:
-                self.project.update(json.loads(overrides.read_text(encoding="utf-8")))
-            except (OSError, ValueError):
-                pass
+        self.session = session
+        self.project = load_project()
         self.inventory = Inventory()
         self.apps = []
         self.availability = {}
@@ -117,152 +132,312 @@ class WelcomeWindow(QWidget):
         self.desktop_worker = None
         self.process = None
         self.commands = []
+        self.commands_done = None
+        self.command_log = None
         self.pending = None
+        self.install_consent = False
         self.wallpaper = ""
         self.accent = ""
         self.setObjectName("shell")
+        self.setWindowTitle(self.t("nativeTitle"))
         self.resize(1080, 760)
-        self.setMinimumSize(820, 620)
+        self.setMinimumSize(860, 640)
         self.setWindowIcon(QIcon(str(Path(__file__).parent / "data/icon.svg")))
         self.setStyleSheet(STYLE)
         self.build()
+        self.clock_timer = QTimer(self)
+        self.clock_timer.timeout.connect(self.update_clock)
+        self.clock_timer.start(1000)
         if auto_scan:
             QTimer.singleShot(100, self.start_scan)
 
-    def build(self, page=0):
-        self.setWindowTitle(self.t("nativeTitle"))
-        outer = self.layout()
-        if outer is None:
-            outer = QHBoxLayout(self)
-            outer.setContentsMargins(18, 18, 18, 18)
-            outer.setSpacing(22)
-        else:
-            while outer.count():
-                item = outer.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+    # Layout -----------------------------------------------------------------
+
+    def build(self):
+        outer = QHBoxLayout(self)
+        outer.setContentsMargins(18, 18, 18, 18)
+        outer.setSpacing(22)
         rail = QFrame()
         rail.setObjectName("rail")
-        rail.setFixedWidth(235)
+        rail.setFixedWidth(240)
         rail_layout = QVBoxLayout(rail)
         rail_layout.setContentsMargins(20, 26, 20, 22)
-        rail_layout.addWidget(label("Edukasaun", "brand"))
-        rail_layout.addWidget(label(self.t("firstSteps")))
+        rail_layout.addWidget(label("Edukasaun OS", "brand"))
+        rail_layout.addWidget(label(self.t("railSubtitle"), "railNote"))
+        rail_layout.addSpacing(14)
         self.steps = QListWidget()
-        for i, key in enumerate(["stepWelcome", "stepDiscover", "stepDesktop", "stepApps", "stepCommunity", "stepReady"]):
+        self.steps.setAccessibleName(self.t("firstSteps"))
+        for i, key in enumerate(PAGES):
             self.steps.addItem(f"{i + 1:02d}   {self.t(key)}")
         self.steps.currentRowChanged.connect(self.navigate)
         rail_layout.addWidget(self.steps, 1)
-        rail_layout.addWidget(label(self.t("educationFirst")))
-        rail_layout.addWidget(label("Edukasaun Welcome  " + __version__))
+        rail_layout.addWidget(label(self.t("educationFirst"), "railNote"))
         outer.addWidget(rail)
+
         content = QWidget()
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 4, 0, 0)
-        toolbar = QHBoxLayout()
-        toolbar.addWidget(label(self.t("nativeTitle")), 1)
-        self.locale_combo = QComboBox()
-        for name, key in [(self.t("followSystem"), "system"), ("English", "en"), ("Tetun", "tet"),
-                          ("Português", "pt"), ("Bahasa Indonesia", "id")]:
-            self.locale_combo.addItem(name, key)
-        self.locale_combo.setCurrentIndex(max(0, self.locale_combo.findData(self.language)))
-        self.locale_combo.setAccessibleName(self.t("language"))
-        self.locale_combo.currentIndexChanged.connect(self.change_language)
-        toolbar.addWidget(self.locale_combo)
-        content_layout.addLayout(toolbar)
         self.stack = QStackedWidget()
-        for make_page in [self.welcome_page, self.discover_page, self.desktop_page, self.apps_page,
-                          self.community_page, self.ready_page]:
-            body = make_page()
+        for make_page in [self.welcome_page, self.time_page, self.suite_page, self.desktop_page,
+                          self.apps_page, self.finish_page]:
             scroll = QScrollArea()
             scroll.setWidgetResizable(True)
-            scroll.setWidget(body)
+            scroll.setWidget(make_page())
             self.stack.addWidget(scroll)
         content_layout.addWidget(self.stack, 1)
-        self.message = label("")
+        self.message = label("", "note")
         content_layout.addWidget(self.message)
         footer = QHBoxLayout()
         self.back_button = button(self.t("back"), lambda: self.navigate(self.stack.currentIndex() - 1))
         footer.addWidget(self.back_button)
-        self.counter = label("")
+        self.counter = label("", "note")
         footer.addWidget(self.counter, 1, Qt.AlignmentFlag.AlignCenter)
+        # Shown on the last page only, where it stays visible without scrolling.
+        self.always = QCheckBox(self.t("alwaysShow"))
+        self.always.setChecked(self.preferences.get("always_show", True))
+        self.always.setToolTip(self.t("alwaysShowNote"))
+        self.always.toggled.connect(self.update_always)
+        footer.addWidget(self.always, 1, Qt.AlignmentFlag.AlignRight)
         self.next_button = button(self.t("next"), self.next_page, True)
         footer.addWidget(self.next_button)
         content_layout.addLayout(footer)
         outer.addWidget(content, 1)
-        self.navigate(page)
+        self.navigate(0)
         self.populate_apps()
 
     def page(self, eyebrow, title, lead):
         widget = QWidget()
         widget.setObjectName("page")
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(4, 26, 8, 10)
-        layout.setSpacing(18)
+        layout.setContentsMargins(4, 22, 10, 10)
+        layout.setSpacing(16)
         layout.addWidget(label(self.t(eyebrow), "eyebrow"))
         layout.addWidget(label(self.t(title), "title"))
         layout.addWidget(label(self.t(lead), "lead"))
         return widget, layout
 
-    def card(self, title, body):
+    def card(self, title, body, action=None):
         frame = QFrame()
         frame.setObjectName("card")
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(18, 16, 18, 16)
-        heading = label(title)
-        heading.setStyleSheet("font-size: 17px; font-weight: 700")
-        layout.addWidget(heading)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.addWidget(label(title, "cardTitle"))
         layout.addWidget(label(body, "lead"))
+        if action is not None:
+            row = QHBoxLayout()
+            row.addWidget(action)
+            row.addStretch()
+            layout.addLayout(row)
+        layout.addStretch()
         return frame
+
+    def grid(self, cards, columns=2):
+        grid = QGridLayout()
+        grid.setSpacing(12)
+        for index, widget in enumerate(cards):
+            grid.addWidget(widget, index // columns, index % columns)
+        for column in range(columns):
+            grid.setColumnStretch(column, 1)
+        return grid
+
+    # Page 1: Welcome --------------------------------------------------------
 
     def welcome_page(self):
         widget, layout = self.page("educationFirst", "welcomeTitle", "welcomeLead")
-        greeting = label(self.t("mainGreeting"))
-        greeting.setStyleSheet("font-size: 27px; font-weight: 700; padding: 22px; background: #dcf4e6; border-radius: 12px")
-        layout.addWidget(greeting)
+        layout.addWidget(label(self.t("mainGreeting"), "hero"))
         systems = QFontDatabase.WritingSystem
         international = ["Welcome", "Bienvenue", "Bienvenido", "Willkommen", "Добро пожаловать",
             script_greeting("مرحبًا", "Marhaban", systems.Arabic),
             script_greeting("欢迎", "Huanying", systems.SimplifiedChinese),
             script_greeting("स्वागत है", "Swagat hai", systems.Devanagari)]
-        layout.addWidget(self.card(self.t("international"), " · ".join(international)))
-        layout.addWidget(self.card("CPLP · Português / Tetun", "Bem-vindo · Bem-vinda · Benvindu"))
         asean = ["Selamat datang", "Maligayang pagdating",
             script_greeting("ยินดีต้อนรับ", "Yindi tonrap", systems.Thai), "Chào mừng",
             script_greeting("សូមស្វាគមន៍", "Soum sva kum", systems.Khmer),
             script_greeting("ຍິນດີຕ້ອນຮັບ", "Nyin di ton hap", systems.Lao),
-            script_greeting("ကြိုဆိုပါတယ်", "Kyo so par", systems.Myanmar), "Welcome", "Benvindu"]
-        layout.addWidget(self.card(self.t("asean"), " · ".join(asean)))
-        self.always = QCheckBox(self.t("alwaysShow"))
-        self.always.setChecked(self.preferences.get("always_show", True))
-        self.always.toggled.connect(self.update_always)
-        layout.addWidget(self.always)
+            script_greeting("ကြိုဆိုပါတယ်", "Kyo so par", systems.Myanmar)]
+        layout.addLayout(self.grid([
+            self.card(self.t("cplp"), "Benvindu · Bem-vindo · Bem-vinda"),
+            self.card(self.t("asean"), " · ".join(asean)),
+            self.card(self.t("international"), " · ".join(international)),
+            self.card(self.t("setupOverview"), self.t("setupOverviewBody")),
+        ]))
+        release = os_release()
+        if release:
+            layout.addWidget(label(self.t("installedSystem", name=release), "note"))
         layout.addStretch()
         return widget
 
-    def discover_page(self):
-        widget, layout = self.page("madeTogether", "discoverTitle", "discoverLead")
+    # Page 2: Date & time ----------------------------------------------------
+
+    def time_page(self):
+        widget, layout = self.page("timeEyebrow", "timeTitle", "timeLead")
+        self.system_zone = current_timezone()
+        self.zone_search = QLineEdit()
+        self.zone_search.setPlaceholderText(self.t("searchTimezone"))
+        self.zone_search.setAccessibleName(self.t("searchTimezone"))
+        self.zone_search.textChanged.connect(self.filter_timezones)
+        self.zone_combo = QComboBox()
+        self.zone_combo.setAccessibleName(self.t("timezone"))
+        self.zone_combo.setMaxVisibleItems(16)
+        self.zone_combo.currentIndexChanged.connect(self.zone_changed)
+        self.filter_timezones("")
+        self.clock_format = QComboBox()
+        self.clock_format.addItem(self.t("clock24"), True)
+        self.clock_format.addItem(self.t("clock12"), False)
+        self.clock_format.setCurrentIndex(0 if self.preferences.get("clock_24h", True) else 1)
+        self.clock_format.setAccessibleName(self.t("clockFormat"))
+        self.clock_format.currentIndexChanged.connect(self.update_clock_format)
+        self.automatic_time = QCheckBox(self.t("automaticTime"))
+        self.automatic_time.setChecked(True)
+        self.manual_time = QDateTimeEdit()
+        self.manual_time.setDisplayFormat("yyyy-MM-dd  HH:mm")
+        self.manual_time.setCalendarPopup(True)
+        self.manual_time.setAccessibleName(self.t("manualTime"))
+        self.manual_time.setEnabled(False)
+        self.reset_manual_time()
+        self.automatic_time.toggled.connect(self.toggle_automatic_time)
+
+        preview = QFrame()
+        preview.setObjectName("card")
+        preview_layout = QVBoxLayout(preview)
+        preview_layout.setContentsMargins(18, 14, 18, 14)
+        self.zone_title = label("", "cardTitle")
+        self.clock_label = label("", "clock")
+        preview_layout.addWidget(self.zone_title)
+        preview_layout.addWidget(self.clock_label)
+        layout.addWidget(preview)
+
+        form = QFormLayout()
+        form.setSpacing(12)
+        form.addRow(self.t("searchTimezone"), self.zone_search)
+        form.addRow(self.t("timezone"), self.zone_combo)
+        form.addRow(self.t("clockFormat"), self.clock_format)
+        form.addRow("", self.automatic_time)
+        form.addRow(self.t("manualTime"), self.manual_time)
+        layout.addLayout(form)
+        self.time_button = button(self.t("applyTime"), self.apply_time, True)
+        row = QHBoxLayout()
+        row.addWidget(self.time_button)
+        row.addStretch()
+        layout.addLayout(row)
+        self.time_status = label(self.t("currentTimezone", zone=self.system_zone or self.t("unknown")),
+                                 "note")
+        layout.addWidget(self.time_status)
+        layout.addWidget(label(self.t("timeNote"), "note"))
+        layout.addStretch()
+        self.update_clock()
+        return widget
+
+    def filter_timezones(self, text):
+        selected = self.zone_combo.currentData() or DEFAULT_TIMEZONE
+        query = text.strip().casefold().replace(" ", "_")
+        self.zone_combo.blockSignals(True)
+        self.zone_combo.clear()
+        for zone in timezone_choices():
+            if query and query not in zone.casefold():
+                continue
+            name = zone.replace("_", " ")
+            if zone == DEFAULT_TIMEZONE:
+                name += " — Timor-Leste"
+            self.zone_combo.addItem(f"{name}   ({utc_offset(zone)})", zone)
+        self.zone_combo.setCurrentIndex(max(0, self.zone_combo.findData(selected)))
+        self.zone_combo.blockSignals(False)
+        self.zone_changed()
+
+    def zone_changed(self):
+        self.reset_manual_time()
+        self.update_clock()
+
+    def toggle_automatic_time(self, automatic):
+        self.manual_time.setEnabled(not automatic)
+        self.reset_manual_time()
+
+    def reset_manual_time(self):
+        """Manual time is entered in the selected zone, which is applied before set-time."""
+        zone = self.selected_timezone()
+        if zone and hasattr(self, "manual_time"):
+            local = datetime.now(ZoneInfo(zone)).replace(tzinfo=None, microsecond=0)
+            self.manual_time.setDateTime(QDateTime(local))
+
+    def selected_timezone(self):
+        return self.zone_combo.currentData() if hasattr(self, "zone_combo") else None
+
+    def update_clock(self):
+        zone = self.selected_timezone()
+        if not hasattr(self, "clock_label"):
+            return
+        if not zone:
+            self.zone_title.setText(self.t("noTimezoneMatch"))
+            self.clock_label.setText("")
+            return
+        self.zone_title.setText(zone.replace("_", " ") + " · " + utc_offset(zone))
+        self.clock_label.setText(format_clock(zone, self.clock_format.currentData() is not False))
+
+    def update_clock_format(self):
+        self.preferences["clock_24h"] = bool(self.clock_format.currentData())
+        self.persist()
+        self.update_clock()
+
+    def apply_time(self):
+        if self.busy():
+            self.message.setText(self.t("closeBusy"))
+            return
         try:
-            release = Path("/etc/os-release").read_text()
-            fields = dict(line.split("=", 1) for line in release.splitlines() if "=" in line and not line.startswith("#"))
-            layout.addWidget(label(fields.get("PRETTY_NAME", "").strip('"')))
-        except OSError:
-            pass
-        layout.addWidget(label(self.t("suiteTitle"), "eyebrow"))
-        for name, key in [("Eduka-Desktop", "suiteDesktop"), ("Eduka-Menu", "suiteMenu"),
-                          ("Eduka-Panel", "suitePanel"), ("Eduka-Menu-Settings", "suiteSettings")]:
-            layout.addWidget(self.card(name, self.t(key)))
-        layout.addWidget(self.card(self.t("projectTools"), self.t("relatedTools")))
-        for field, key in [("developers", "developmentTeam"), ("sponsors", "sponsors"), ("partners", "partners")]:
-            layout.addWidget(self.card(self.t(key), "\n".join(self.project.get(field, [])) or self.t("pendingCredits")))
-        layout.addWidget(button(self.t("about"), self.show_about))
-        layout.addWidget(label(self.t("upstreamThanks"), "lead"))
+            manual = None if self.automatic_time.isChecked() else \
+                self.manual_time.dateTime().toPyDateTime()
+            commands = time_commands(self.selected_timezone() or "", self.automatic_time.isChecked(),
+                                     manual)
+            if not shutil.which("timedatectl"):
+                raise RuntimeError(self.t("timedatectlMissing"))
+        except (ValueError, RuntimeError) as error:
+            self.error(error)
+            return
+        self.time_button.setEnabled(False)
+        self.time_status.setText(self.t("timeApplying"))
+        self.run_commands(commands, None, self.time_finished)
+
+    def time_finished(self, success):
+        self.time_button.setEnabled(True)
+        if success:
+            self.system_zone = self.selected_timezone()
+            self.preferences["timezone"] = self.system_zone
+            self.persist()
+            self.time_status.setText(self.t("timeApplied", zone=self.system_zone))
+        else:
+            self.time_status.setText(self.t("timeFailed"))
+
+    # Page 3: Eduka-Desktop Suite --------------------------------------------
+
+    def suite_page(self):
+        widget, layout = self.page("suiteEyebrow", "suiteTitle", "suiteLead")
+        settings_button = button(self.t("openMenuSettings"), lambda: self.run_tool("suite"))
+        settings_button.setEnabled(bool(self.project.get("suite_tools", {}).get("suite")))
+        layout.addLayout(self.grid([
+            self.card("Eduka-Desktop", self.t("suiteDesktop")),
+            self.card("Eduka-Menu", self.t("suiteMenu")),
+            self.card("Eduka-Panel", self.t("suitePanel")),
+            self.card("Eduka-Menu-Settings", self.t("suiteSettings"), settings_button),
+        ]))
+        layout.addWidget(label(self.t("projectTools"), "eyebrow"))
+        layout.addLayout(self.grid([
+            self.card("EUS", self.t("toolEus")),
+            self.card("Eduka-Konekta", self.t("toolKonekta")),
+            self.card("Eduka-Block", self.t("toolBlock")),
+        ], 3))
+        about = QHBoxLayout()
+        about.addWidget(button(self.t("about"), self.show_about))
+        about.addStretch()
+        layout.addLayout(about)
+        layout.addWidget(label(self.t("upstreamThanks"), "note"))
         layout.addStretch()
         return widget
+
+    # Page 4: Personalize ----------------------------------------------------
 
     def desktop_page(self):
         widget, layout = self.page("makeItYours", "desktopTitle", "desktopLead")
         form = QFormLayout()
+        form.setSpacing(12)
         self.theme_combo = QComboBox()
         self.icon_combo = QComboBox()
         for combo, kind, key in [(self.theme_combo, "theme", "theme"), (self.icon_combo, "icons", "icons")]:
@@ -271,10 +446,10 @@ class WelcomeWindow(QWidget):
                 combo.addItem(name, name)
             combo.setAccessibleName(self.t(key))
             form.addRow(self.t(key), combo)
-        self.color_button = button(self.t("accentColor"), self.choose_color)
+        self.color_button = button(self.t("keepCurrentSettings"), self.choose_color)
         form.addRow(self.t("accentColor"), self.color_button)
         file_row = QHBoxLayout()
-        self.wallpaper_label = label(self.wallpaper or self.t("wallpaperEmpty"))
+        self.wallpaper_label = label(self.t("wallpaperEmpty"))
         file_row.addWidget(self.wallpaper_label, 1)
         file_row.addWidget(button(self.t("chooseFile"), self.choose_wallpaper))
         form.addRow(self.t("wallpaper"), file_row)
@@ -282,29 +457,32 @@ class WelcomeWindow(QWidget):
         self.wallpaper_preview = label("")
         self.wallpaper_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.wallpaper_preview)
-        self.reduce_motion = QCheckBox(self.t("reducedMotion"))
-        self.reduce_motion.setChecked(self.preferences.get("reduced_motion", True))
-        self.reduce_motion.toggled.connect(self.update_motion)
-        layout.addWidget(self.reduce_motion)
-        layout.addWidget(label(self.t("reducedMotionNote"), "lead"))
         self.apply_button = button(self.t("apply"), self.apply_settings, True)
-        layout.addWidget(self.apply_button)
-        layout.addWidget(label(self.t("desktopWarning"), "lead"))
-        layout.addWidget(button(self.t("openAppearance"), lambda: self.run_tool("appearance")))
-        layout.addWidget(button(self.t("openDesktop"), lambda: self.run_tool("desktop")))
-        layout.addWidget(button(self.t("openEffects"), lambda: self.run_tool("effects")))
-        layout.addWidget(label(self.t("effectsNote"), "lead"))
+        row = QHBoxLayout()
+        row.addWidget(self.apply_button)
+        row.addStretch()
+        layout.addLayout(row)
+        layout.addWidget(label(self.t("desktopWarning"), "note"))
+        layout.addWidget(label(self.t("moreSettings"), "eyebrow"))
+        tools = QHBoxLayout()
+        tools.addWidget(button(self.t("openAppearance"), lambda: self.run_tool("appearance")))
+        tools.addWidget(button(self.t("openDesktop"), lambda: self.run_tool("desktop")))
+        tools.addWidget(button(self.t("openEffects"), lambda: self.run_tool("effects")))
+        tools.addStretch()
+        layout.addLayout(tools)
+        layout.addWidget(label(self.t("effectsNote"), "note"))
         layout.addStretch()
         return widget
+
+    # Page 5: Applications ---------------------------------------------------
 
     def apps_page(self):
         widget, layout = self.page("toolsForEveryday", "appsTitle", "appsLead")
         filters = QHBoxLayout()
         self.category_combo = QComboBox()
         self.category_combo.addItem(self.t("allCategories"), "all")
-        categories = ["educationGames", "internetMail", "officeDocuments", "audioVideo",
-                      "graphicsDesign", "systemTools", "developmentTools", "accessibility"]
-        for key in categories:
+        for key in ["educationGames", "internetMail", "officeDocuments", "audioVideo",
+                    "graphicsDesign", "systemTools", "developmentTools", "accessibility"]:
             self.category_combo.addItem(self.t(key), key)
         self.category_combo.setAccessibleName(self.t("category"))
         self.source_combo = QComboBox()
@@ -319,16 +497,17 @@ class WelcomeWindow(QWidget):
         self.refresh_button = button(self.t("refresh"), self.start_scan)
         filters.addWidget(self.refresh_button)
         layout.addLayout(filters)
-        self.scan_status = label(self.t("scanProgress"), "lead")
+        self.scan_status = label(self.t("scanProgress"), "note")
         layout.addWidget(self.scan_status)
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["", self.t("stepApps"), self.t("about")])
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.setHorizontalHeaderLabels(["", self.t("application"), self.t("description")])
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         self.table.verticalHeader().hide()
         self.table.setWordWrap(True)
-        self.table.setMinimumHeight(285)
+        self.table.setMinimumHeight(280)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         layout.addWidget(self.table)
         self.consent = QCheckBox()
@@ -337,77 +516,74 @@ class WelcomeWindow(QWidget):
         self.install_button = button(self.t("installSelected"), self.request_install, True)
         actions.addWidget(self.install_button)
         actions.addWidget(button(self.t("viewCommands"), self.show_commands))
+        actions.addWidget(button(self.t("exportInventory"), self.export_inventory))
+        actions.addStretch()
         layout.addLayout(actions)
-        layout.addWidget(label(self.t("catalogFreshness"), "lead"))
-        layout.addWidget(button(self.t("exportInventory"), self.export_inventory))
+        layout.addWidget(label(self.t("catalogFreshness"), "note"))
         self.log = QTextEdit()
         self.log.setReadOnly(True)
         self.log.document().setMaximumBlockCount(2000)
         self.log.setAccessibleName(self.t("log"))
-        self.log.setMinimumHeight(150)
-        self.log.setMaximumHeight(220)
+        self.log.setMinimumHeight(140)
+        self.log.setMaximumHeight(200)
         layout.addWidget(self.log)
         layout.addStretch()
         return widget
 
-    def community_page(self):
-        widget, layout = self.page("growTogether", "communityTitle", "communityLead")
-        for field, key in [("website", "officialWebsite"), ("facebook", "Facebook"),
-                           ("whatsapp", "whatsappChannel"), ("github", "GitHub")]:
-            text = self.t(key) if key not in ("Facebook", "GitHub") else key
+    # Page 6: Community and finish -------------------------------------------
+
+    def finish_page(self):
+        widget, layout = self.page("journeyStarts", "finishTitle", "finishLead")
+        links = QHBoxLayout()
+        for field, text in [("website", self.t("officialWebsite")), ("facebook", "Facebook"),
+                            ("whatsapp", self.t("whatsappChannel")), ("github", "GitHub")]:
             link_button = button(text, lambda checked=False, field=field: self.open_link(field))
             link_button.setEnabled(bool(self.project.get(field)))
-            layout.addWidget(link_button)
             if field == "github" and not self.project.get(field):
-                layout.addWidget(label(self.t("githubPending"), "lead"))
+                link_button.setToolTip(self.t("githubPending"))
+            links.addWidget(link_button)
+        links.addStretch()
+        layout.addLayout(links)
         layout.addWidget(label(self.t("ourGoals"), "eyebrow"))
-        for key in ("goalEducation", "goalAccess", "goalSkills"):
-            layout.addWidget(self.card(self.t(key), self.t(key + "Body")))
+        layout.addLayout(self.grid([self.card(self.t(key), self.t(key + "Body"))
+                                    for key in ("goalEducation", "goalAccess", "goalSkills")], 3))
+        credits = [self.card(self.t(key), "\n".join(self.project.get(field, [])) or self.t("pendingCredits"))
+                   for field, key in [("developers", "developmentTeam"), ("sponsors", "sponsors"),
+                                      ("partners", "partners")]]
+        layout.addLayout(self.grid(credits, 3))
+        layout.addWidget(self.card(self.t("supportProject"),
+                                   self.t("donationBody") + " " + self.t("donationOptional"),
+                                   button(self.t("donatePayPal"), lambda: self.open_link("paypal"))))
         layout.addStretch()
         return widget
 
-    def ready_page(self):
-        widget, layout = self.page("journeyStarts", "thanksTitle", "thanksLead")
-        layout.addWidget(self.card(self.t("supportProject"), self.t("donationBody")))
-        layout.addWidget(label(self.t("donationOptional"), "lead"))
-        layout.addWidget(button(self.t("donatePayPal"), lambda: self.open_link("paypal")))
-        layout.addStretch()
-        return widget
+    # Navigation -------------------------------------------------------------
 
     def navigate(self, page):
-        if not hasattr(self, "stack") or not 0 <= page < 6:
+        if not hasattr(self, "stack") or not 0 <= page < len(PAGES):
             return
         self.stack.setCurrentIndex(page)
         self.steps.blockSignals(True)
         self.steps.setCurrentRow(page)
         self.steps.blockSignals(False)
         self.back_button.setEnabled(page > 0)
-        self.next_button.setText(self.t("close") if page == 5 else self.t("next"))
-        self.counter.setText(f"{page + 1} / 6")
+        last = page == len(PAGES) - 1
+        self.always.setVisible(last)
+        self.counter.setVisible(not last)
+        self.next_button.setText(self.t("startDesktop" if self.session else "finish") if last
+                                 else self.t("next"))
+        self.counter.setText(self.t("stepCounter", current=page + 1, total=len(PAGES)))
         self.message.setText("")
 
     def next_page(self):
         page = self.stack.currentIndex()
-        self.close() if page == 5 else self.navigate(page + 1)
-
-    def change_language(self):
-        if self.busy():
-            return
-        language = self.locale_combo.currentData()
-        if language == self.language:
-            return
-        self.language = language
-        self.preferences["language"] = language
-        self.persist()
-        self.t = Translator(language)
-        self.build(self.stack.currentIndex())
+        if page == len(PAGES) - 1:
+            self.close()
+        else:
+            self.navigate(page + 1)
 
     def update_always(self, value):
         self.preferences["always_show"] = value
-        self.persist()
-
-    def update_motion(self, value):
-        self.preferences["reduced_motion"] = value
         self.persist()
 
     def persist(self):
@@ -419,13 +595,14 @@ class WelcomeWindow(QWidget):
     def busy(self):
         return bool(self.worker is not None or self.desktop_worker is not None or self.process is not None)
 
+    # Application inventory and installation ---------------------------------
+
     def start_scan(self):
         if self.busy():
             return
         self.scan_status.setText(self.t("scanProgress"))
         self.install_button.setEnabled(False)
         self.refresh_button.setEnabled(False)
-        self.locale_combo.setEnabled(False)
         self.worker = ScanWorker(self)
         self.worker.completed.connect(self.scan_finished)
         self.worker.finished.connect(self.worker_finished)
@@ -442,7 +619,6 @@ class WelcomeWindow(QWidget):
         self.worker.deleteLater()
         self.worker = None
         self.refresh_button.setEnabled(True)
-        self.locale_combo.setEnabled(True)
         self.populate_apps()
         if self.pending:
             identifiers, source = self.pending
@@ -522,24 +698,36 @@ class WelcomeWindow(QWidget):
     def begin_install(self, apps, source):
         try:
             if source in ("apt", "brave") and not Path("/usr/lib/edukasaun-welcome/admin-helper").is_file():
-                raise RuntimeError("Install Edukasaun Welcome with scripts/install.sh before installing applications.")
-            self.commands = install_commands(apps, source, self.install_consent, self.install_consent)
-            self.log.clear()
-            self.locale_combo.setEnabled(False)
-            self.refresh_button.setEnabled(False)
-            self.category_combo.setEnabled(False)
-            self.source_combo.setEnabled(False)
-            self.install_button.setEnabled(False)
-            self.run_next_command()
+                raise RuntimeError(self.t("helperMissing"))
+            commands = install_commands(apps, source, self.install_consent, self.install_consent)
         except (OSError, ValueError, RuntimeError) as error:
             self.error(error)
+            return
+        self.log.clear()
+        for widget in (self.refresh_button, self.category_combo, self.source_combo, self.install_button):
+            widget.setEnabled(False)
+        self.run_commands(commands, self.log, self.finish_install)
+
+    def finish_install(self, success):
+        self.message.setText(self.t("installComplete" if success else "installFailed"))
+        for widget in (self.refresh_button, self.category_combo, self.source_combo):
+            widget.setEnabled(True)
+        self.start_scan()
+
+    # Sequential, asynchronous command runner --------------------------------
+
+    def run_commands(self, commands, log, done):
+        self.commands = list(commands)
+        self.command_log = log
+        self.commands_done = done
+        self.run_next_command()
 
     def run_next_command(self):
         if not self.commands:
-            self.finish_install(True)
+            self.end_commands(True)
             return
         arguments = self.commands.pop(0)
-        self.log.append("$ " + shlex.join(arguments))
+        self.write_log("$ " + shlex.join(arguments) + "\n")
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.read_output)
@@ -547,12 +735,15 @@ class WelcomeWindow(QWidget):
         self.process.errorOccurred.connect(self.command_error)
         self.process.start(arguments[0], arguments[1:])
 
+    def write_log(self, text):
+        if self.command_log is not None:
+            self.command_log.moveCursor(self.command_log.textCursor().MoveOperation.End)
+            self.command_log.insertPlainText(text)
+            self.command_log.ensureCursorVisible()
+
     def read_output(self):
         if self.process:
-            text = bytes(self.process.readAllStandardOutput()).decode("utf-8", errors="replace")
-            self.log.moveCursor(self.log.textCursor().MoveOperation.End)
-            self.log.insertPlainText(text)
-            self.log.ensureCursorVisible()
+            self.write_log(bytes(self.process.readAllStandardOutput()).decode("utf-8", errors="replace"))
 
     def command_finished(self, code, status):
         if self.process is None:
@@ -563,40 +754,40 @@ class WelcomeWindow(QWidget):
         if code == 0 and status == QProcess.ExitStatus.NormalExit:
             self.run_next_command()
         else:
-            self.finish_install(False)
+            self.end_commands(False)
 
     def command_error(self, error):
         if error == QProcess.ProcessError.FailedToStart and self.process:
-            self.log.append(self.process.errorString())
+            self.write_log(self.process.errorString() + "\n")
             self.process.deleteLater()
             self.process = None
-            self.finish_install(False)
+            self.end_commands(False)
 
-    def finish_install(self, success):
+    def end_commands(self, success):
         self.commands = []
-        self.message.setText(self.t("installComplete" if success else "installFailed"))
-        self.category_combo.setEnabled(True)
-        self.source_combo.setEnabled(True)
-        self.locale_combo.setEnabled(True)
-        self.refresh_button.setEnabled(True)
-        self.start_scan()
+        done, self.commands_done = self.commands_done, None
+        if done is not None:
+            done(success)
 
     def show_commands(self):
         try:
             commands = install_commands(self.selected_apps(), self.source_combo.currentData(),
                                         self.consent.isChecked(), self.consent.isChecked())
-            dialog = QDialog(self)
-            dialog.setWindowTitle(self.t("viewCommands"))
-            dialog.resize(650, 300)
-            layout = QVBoxLayout(dialog)
-            text = QTextEdit()
-            text.setReadOnly(True)
-            text.setPlainText("\n".join(shlex.join(command) for command in commands))
-            layout.addWidget(text)
-            layout.addWidget(button(self.t("close"), dialog.close))
-            dialog.exec()
         except ValueError as error:
             self.error(error)
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.t("viewCommands"))
+        dialog.resize(650, 300)
+        layout = QVBoxLayout(dialog)
+        text = QTextEdit()
+        text.setReadOnly(True)
+        text.setPlainText("\n".join(shlex.join(command) for command in commands))
+        layout.addWidget(text)
+        layout.addWidget(button(self.t("close"), dialog.close))
+        dialog.exec()
+
+    # Desktop personalization ------------------------------------------------
 
     def choose_color(self):
         color = QColorDialog.getColor(QColor(self.accent or "#00a887"), self, self.t("accentColor"))
@@ -618,7 +809,6 @@ class WelcomeWindow(QWidget):
             self.message.setText(self.t("closeBusy"))
             return
         self.apply_button.setEnabled(False)
-        self.locale_combo.setEnabled(False)
         self.desktop_worker = DesktopWorker({"icons": self.icon_combo.currentData(),
             "theme": self.theme_combo.currentData(), "accent": self.accent,
             "wallpaper": self.wallpaper}, self)
@@ -636,7 +826,8 @@ class WelcomeWindow(QWidget):
         self.desktop_worker.deleteLater()
         self.desktop_worker = None
         self.apply_button.setEnabled(True)
-        self.locale_combo.setEnabled(True)
+
+    # Misc -------------------------------------------------------------------
 
     def run_tool(self, key):
         if not open_tool(self.project.get("suite_tools", {}).get(key, [])):
@@ -649,8 +840,8 @@ class WelcomeWindow(QWidget):
             QDesktopServices.openUrl(QUrl(url))
 
     def show_about(self):
-        QMessageBox.about(self, self.t("about"), self.t("nativeTitle") + " " + __version__ +
-                          "\n\n" + self.t("discoverLead") + "\n\nGPL-3.0-or-later · Python / Qt 6")
+        QMessageBox.about(self, self.t("about"), self.t("nativeTitle") + "\n\n" + self.t("suiteLead") +
+                          "\n\n" + self.t("developmentBuild") + "\nGPL-3.0-or-later · Python / Qt 6")
 
     def export_inventory(self):
         if not self.scanned:
@@ -671,14 +862,21 @@ class WelcomeWindow(QWidget):
         if self.busy():
             self.message.setText(self.t("closeBusy"))
             event.ignore()
-        else:
-            event.accept()
+            return
+        event.accept()
+        if self.session:
+            # Welcome Screen first, then the desktop: start Eduka-Desktop on the way out.
+            start_desktop(self.project.get("eduka_desktop", {}))
 
 
-def launch(language="system", preferences=None):
+def launch(language="en", preferences=None, session=False):
     application = QApplication([])
     application.setApplicationName("Edukasaun Welcome")
     application.setDesktopFileName("edukasaun-welcome")
-    window = WelcomeWindow(language, preferences)
-    window.show()
+    window = WelcomeWindow(language, preferences, session=session)
+    if session:
+        # No desktop is running yet, so take the whole screen.
+        window.showMaximized()
+    else:
+        window.show()
     return application.exec()
