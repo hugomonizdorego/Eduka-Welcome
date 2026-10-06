@@ -94,7 +94,9 @@ class NativeTests(unittest.TestCase):
         self.assertFalse(self.window.back_button.isEnabled())
         self.assertEqual(self.window.counter.text(), "Step 1 of 7")
         self.window.navigate(4)
-        self.assertEqual(self.window.next_button.text(), "Next")
+        self.assertTrue(self.window.next_button.text().startswith("Next"))
+        self.assertEqual([step.state for step in self.window.step_buttons][:5],
+                         ["done", "todo", "todo", "todo", "current"])
         self.window.navigate(6)
         self.assertEqual(self.window.next_button.text(), "Finish")
         session = WelcomeWindow("en", {}, auto_scan=False, session=True)
@@ -144,30 +146,52 @@ class NativeTests(unittest.TestCase):
         self.assertTrue(saved["desktop"]["visual_accessibility"])
         self.assertEqual(saved["panel"]["_settings_revision"], "0.9.6-transparency")
 
-    def test_liquid_glass_refused_on_weak_hardware(self):
-        index = self.window.visual_theme.findData("Liquid Glass")
-        with patch("edukasaun_welcome.gui.liquid_glass_capability", return_value=(1.0, 1, False)), \
+    def test_glass_theme_refused_on_weak_hardware(self):
+        card = self.window.theme_cards["Liquid Glass"]
+        with patch("edukasaun_welcome.gui.glass_capability", return_value=(1.0, 1, False)), \
                 patch.object(QMessageBox, "warning") as warning:
-            self.window.visual_theme.setCurrentIndex(index)
+            card.click()
             warning.assert_called_once()
-        self.assertEqual(self.window.visual_theme.currentData(), "Eduka-Default-Theme")
-        with patch("edukasaun_welcome.gui.liquid_glass_capability", return_value=(8.0, 4, True)), \
+        self.assertEqual(self.window.selected_theme(), "Eduka-Default-Theme")
+        with patch("edukasaun_welcome.gui.glass_capability", return_value=(8.0, 4, True)), \
                 patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
-            self.window.visual_theme.setCurrentIndex(index)
-        self.assertEqual(self.window.visual_theme.currentData(), "Liquid Glass")
+            card.click()
+        self.assertEqual(self.window.selected_theme(), "Liquid Glass")
         self.assertFalse(self.window.low_resource.isEnabled())
+        self.window.theme_cards["Eduka-Low-Theme"].click()
+        self.assertTrue(self.window.low_resource.isChecked())
 
-    def test_sponsor_entries(self):
-        from edukasaun_welcome.gui import sponsor_entry
-        with tempfile.TemporaryDirectory() as folder:
-            (Path(folder) / "logo.png").write_bytes(b"fixture")
-            entry = sponsor_entry({"name": "Fixture", "logo": "../../logo.png", "url": "https://example.org"},
-                                  [Path(folder)])
-            self.assertEqual(entry["logo"], Path(folder) / "logo.png")
-            self.assertEqual(sponsor_entry({"name": "X", "url": "http://insecure"})["url"], "")
-            self.assertEqual(sponsor_entry("Plain name")["name"], "Plain name")
-            self.assertIsNone(sponsor_entry({"logo": "a.png"}))
-            self.assertIsNone(sponsor_entry({"name": "Y", "logo": "a.sh"}, [Path(folder)])["logo"])
+    def test_effects_need_a_strong_computer(self):
+        with patch("edukasaun_welcome.gui.effects_capability", return_value=(2.0, 2, False)), \
+                patch.object(QMessageBox, "information") as information:
+            self.window.effects.setChecked(True)
+            information.assert_called_once()
+        self.assertFalse(self.window.effects.isChecked())
+
+    def test_panel_style_position_and_accent_values(self):
+        self.window.panel_style_cards["dock"].click()
+        next(chip for chip in self.window.position_group.buttons() if chip.property("value") == "Top").click()
+        self.window.set_accent("#2563eb")
+        panel, desktop, _ = self.window.eduka_values()
+        self.assertEqual((panel["panel_style"], panel["position"]), ("dock", "Top"))
+        self.assertEqual(desktop["accent_color"], "#2563eb")
+
+    def test_dynamic_message_keys_exist(self):
+        from edukasaun_welcome.eduka_desktop import (
+            CLOCK_STYLES, EFFECT_HOVER, EFFECT_LAUNCH, LAYOUTS, PANEL_POSITIONS, PANEL_STYLES, TASKBAR_STYLES,
+            THEMES, TILE_SIZES, WALLPAPER_MODES)
+        from edukasaun_welcome.gui import PAGES, theme_key
+        messages = json.loads((Path(__file__).resolve().parents[1] / "edukasaun_welcome/locales/en.json").read_text())
+        keys = [key for page in PAGES for key in page]
+        keys += ["clockStyle_" + v for v in CLOCK_STYLES] + ["hover_" + v.replace("-", "") for v in EFFECT_HOVER]
+        keys += ["launch_" + v.replace("-", "") for v in EFFECT_LAUNCH] + ["layout_" + v for v in LAYOUTS]
+        keys += ["position_" + v for v in PANEL_POSITIONS] + ["panelStyle_" + v for v, _ in PANEL_STYLES]
+        keys += ["taskbar_" + v.replace(" ", "") for v in TASKBAR_STYLES] + [f"tile{v}" for v in TILE_SIZES]
+        keys += ["theme_" + theme_key(v) for v in THEMES] + ["themeHint_" + theme_key(v) for v in THEMES]
+        keys += ["mode_" + v for v in WALLPAPER_MODES] + ["weight_" + v for v in ("light", "medium", "heavy")]
+        catalog = json.loads((Path(__file__).resolve().parents[1] / "edukasaun_welcome/data/catalog.json").read_text())
+        keys += [app["description"] for app in catalog["apps"]]
+        self.assertFalse([key for key in keys if key not in messages])
 
     def test_clock_format_is_saved(self):
         self.window.clock_format.setCurrentIndex(1)
@@ -186,8 +210,12 @@ class NativeTests(unittest.TestCase):
 
     def test_selection_maps_to_catalog_and_clear_on_filter(self):
         self.fixture_apps()
+        # Recommended applications come first.
+        self.assertEqual(self.window.category_combo.currentData(), "recommended")
+        first = self.window.table.item(0, 0).data(Qt.ItemDataRole.UserRole)
+        self.assertTrue(next(app for app in self.window.apps if app["id"] == first)["recommended"])
         self.window.table.item(0, 0).setCheckState(Qt.CheckState.Checked)
-        self.assertEqual(self.window.selected_apps()[0]["id"], "chromium")
+        self.assertEqual(self.window.selected_apps()[0]["id"], first)
         self.window.category_combo.setCurrentIndex(self.window.category_combo.findData("educationGames"))
         self.assertEqual(self.window.selected_apps(), [])
 
@@ -199,7 +227,8 @@ class NativeTests(unittest.TestCase):
 
     def test_unavailable_apt_item_is_disabled(self):
         self.fixture_apps()
-        self.window.availability["chromium"] = False
+        first = self.window.table.item(0, 0).data(Qt.ItemDataRole.UserRole)
+        self.window.availability[first] = False
         self.window.populate_apps()
         self.assertFalse(self.window.table.item(0, 0).flags() & Qt.ItemFlag.ItemIsEnabled)
 

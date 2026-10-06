@@ -26,19 +26,29 @@ def fixture_read(path, *args, **kwargs):
     return original_read(path, *args, **kwargs)
 
 
-with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"XDG_CONFIG_HOME": folder}), patch.object(Path, "read_text", fixture_read):
+with tempfile.TemporaryDirectory() as folder, \
+        patch.dict(os.environ, {"XDG_CONFIG_HOME": folder, "HOME": folder, "XDG_RUNTIME_DIR": folder}), \
+        patch.object(Path, "read_text", fixture_read), patch.object(gui, "start_desktop"):
     application = QApplication([])
     window = WelcomeWindow("en", {}, auto_scan=False, session=True)
     window.apps = load_catalog()["apps"]
     window.scanned = True
     window.availability = {app["id"]: True for app in window.apps}
     window.populate_apps()
+    window.resize(1280, 860)
     window.show()
     application.processEvents()
     for page in range(7):
         window.navigate(page)
+        # Grow the window so every screenshot shows the whole page without scrolling.
+        window.resize(1280, 860)
+        application.processEvents()
+        scroll = window.stack.currentWidget()
+        extra = scroll.widget().sizeHint().height() - scroll.viewport().height()
+        window.resize(1280, min(1800, 860 + max(0, extra + 40)))
         application.processEvents()
         window.grab().save(str(ROOT / "docs" / f"page-{page + 1}.png"))
+    window.resize(1280, 860)
     window.navigate(0)
     application.processEvents()
     window.grab().save(str(ROOT / "docs/welcome-preview.png"))

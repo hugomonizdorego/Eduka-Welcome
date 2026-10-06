@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import tempfile
 import unittest
@@ -68,6 +69,22 @@ class DesktopLaunchTests(unittest.TestCase):
                 patch.object(entry, "load_preferences", return_value={}), \
                 patch.object(entry, "start_desktop") as start, patch("os.geteuid", return_value=1000):
             self.assertEqual(entry.main(["--session"]), 0)
+            start.assert_called_once()
+
+    @unittest.skipUnless(importlib.util.find_spec("PyQt6"), "Install python3-pyqt6 for native UI checks")
+    def test_before_session_marker_skips_second_welcome(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict("os.environ", {"XDG_RUNTIME_DIR": folder}), \
+                patch.object(entry, "is_live_session", return_value=False), \
+                patch.object(entry, "load_preferences", return_value={}), patch("os.geteuid", return_value=1000), \
+                patch("edukasaun_welcome.gui.launch", return_value=0) as launch, \
+                patch.object(entry, "start_desktop") as start:
+            self.assertEqual(entry.main(["--before-session"]), 0)
+            launch.assert_called_once()
+            self.assertFalse(launch.call_args.kwargs["session"])
+            self.assertTrue(launch.call_args.kwargs["before_session"])
+            # The autostart gate in the same login now only starts Eduka-Desktop.
+            self.assertEqual(entry.main(["--session"]), 0)
+            launch.assert_called_once()
             start.assert_called_once()
 
     def test_manual_launch_refused_on_live_system(self):

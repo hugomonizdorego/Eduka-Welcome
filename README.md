@@ -14,31 +14,35 @@ The **Welcome Screen** for **Edukasaun OS** — a native **Python / Qt 6** appli
 
 ## Seven pages
 
+Screenshots of every page are in [`docs/`](docs/) (`page-1.png` … `page-7.png`).
+
 | Page | Contents |
 | --- | --- |
-| 1. Welcome | Greetings from Timor-Leste & CPLP, ASEAN and around the world; overview of the setup steps; installed system name |
-| 2. Date & time | Time zone list that **always starts from Asia/Dili (Timor-Leste)**, search, live clock preview with UTC offset, 24/12-hour clock format, automatic time (NTP) or manual date and time, Apply |
-| 3. Eduka-Desktop Suite | Eduka-Desktop, Eduka-Menu, Eduka-Panel, Eduka-Menu-Settings; project tools EUS, Eduka-Konekta, Eduka-Block; About |
-| 4. Your desktop | **All Eduka-Desktop Suite settings** with a live panel preview (see below), plus LXQt theme, icons, accent color and wallpaper |
-| 5. Applications | Additional recommendations only; APT/Flatpak/Brave sources; pre-install rescan; authentication, live output and inventory export |
+| 1. Welcome | Hero banner with a greeting that changes language every few seconds (Tetun first), three highlights (made in Timor-Leste, free and open, built for learning), CPLP, ASEAN and international greetings |
+| 2. Date & time | Analog and digital clock for the chosen zone, quick choices (Dili, Jakarta, Makassar, Darwin, Singapore, Lisbon, UTC), a full time zone list that **always starts from Asia/Dili (Timor-Leste)**, NTP or manual time, and the Eduka-Panel clock (24/12 hours, digital/analog/LED face, seconds) |
+| 3. Eduka-Desktop Suite | Eduka-Desktop, Eduka-Panel, Action Center and Eduka-Settings; highlights of Eduka-Desktop 0.9.24 (six themes, Parental Control, login screen, accessibility, languages, light on old PCs); EUS, Eduka-Konekta, Eduka-Block |
+| 4. Your desktop | Live desktop preview plus **the look settings of Eduka-Settings** (see below) |
+| 5. Applications | 67 education-first applications that are not yet installed; ★ "Recommended for Edukasaun OS" first; weight badge (lightweight / medium / needs a strong PC); APT, Flatpak or Brave sources |
 | 6. Sponsors & support | Sponsor and partner **logos**, PayPal donation, how to become a sponsor, contributing on GitHub |
-| 7. Community & finish | Website, Facebook, WhatsApp, GitHub (https://github.com/hugomonizdorego); goals; development team; startup preference; **Start Eduka-Desktop** |
+| 7. Community & finish | Summary (time zone, theme, new applications), website, Facebook, WhatsApp, GitHub (https://github.com/hugomonizdorego), goals, development team, startup preference, **Start Eduka-Desktop** |
 
-Every page after the first has Back. All settings are optional; Next skips them.
+The left rail shows every step with a check mark once done, and a progress bar. Icons, clocks, theme and panel previews are painted by the application itself, so they look the same on every computer without icon themes or SVG plugins.
 
-## Your desktop: Eduka-Desktop settings
+## Your desktop: Eduka-Desktop 0.9.24 settings
 
-Page 4 offers everything Eduka-Menu-Settings (Eduka-Desktop 0.9.10) offers, except maintenance actions, in five tabs:
+Page 4 follows Eduka-Desktop **0.9.24** (branch `claude/festive-mayer-oxi3zl`) and offers the look settings of Eduka-Settings in five tabs:
 
 | Tab | Settings |
 | --- | --- |
-| Theme & effects | Visual theme (Eduka-Default-Theme or Liquid Glass, with the same 4 GB RAM / two CPU thread check and confirmation), panel transparency, desktop transparency, shadows, low resource mode |
-| Eduka-Panel | Menu button name, icon and icon size, show name beside icon, panel height and width, taskbar style |
-| Eduka-Desktop | Default layout (Grid/List), default section, desktop width and height, follow system language |
-| Accessibility | Vision (high contrast), hearing (status as text), Orca screen reader |
-| LXQt & wallpaper | Installed LXQt themes and icon themes, accent color, wallpaper, LXQt Appearance / desktop / session tools |
+| Theme & colors | Six theme cards (Eduka Default, Eduka Low, Liquid Glass, Edukasaun Dark, Eduka Transparan, Eduka MultiColor), 17 accent colors or a custom color, panel and desktop transparency, multi-color, blur behind Liquid Glass, shadows, low resource mode |
+| Eduka-Panel | Panel style cards (Long, Floating bar, Short, Dock), position (bottom, top, left, right), height, width, taskbar buttons, menu button name, icon and size |
+| Eduka-Desktop | Grid or List, opening section, tile size, width and height, Tetun or system language, animated effects (hover and launch) |
+| Wallpaper | Pictures from `/usr/share/Edukasaun/Backgrounds` or any picture, placement mode |
+| Accessibility | High contrast, status as text, Orca screen reader |
 
-A live preview shows the panel, menu button and Eduka-Desktop window as settings change. **Apply** writes the same per-user files Eduka-Menu-Settings uses (`~/.config/eduka-desktop/{panel,desktop,menu}/settings.json`), keeps unknown keys, and sends the same reload signals, so a running Eduka-Panel and Eduka-Desktop refresh immediately. Orca is enabled or disabled through Eduka-Desktop's own `configure_orca` (run in a separate process, because Eduka-Desktop uses PyQt5). **Restore Eduka defaults** resets the form to Eduka-Desktop's defaults. **Open Eduka-Menu-Settings** opens the full settings tool.
+The same rules as Eduka-Settings apply: glass themes need about 2 GB RAM and two CPU threads (asked before enabling), animated effects need about 4 GB RAM and four threads, Eduka Low always runs in low resource mode.
+
+**Apply** writes the per-user files Eduka-Settings uses (`~/.config/eduka-desktop/{panel,desktop,menu}/settings.json`, keeping unknown keys), then runs Eduka-Desktop's own code in a separate process (it uses PyQt5): `apply_desktop_theme` (GTK, Qt palette and window borders for the system-wide themes), `repair_qt_palette`, `configure_orca`, `eduka_wallpaper.apply_wallpaper`, `ensure_compositor` and the reload signals. **Open Eduka-Settings** opens the full tool for everything else (mouse, keyboard, login screen, Parental Control, notifications).
 
 ## Sponsor logos
 
@@ -53,21 +57,27 @@ Logo files (PNG, SVG, JPG, WebP) are looked up by file name in `~/.config/edukas
 
 ## Session gate: Welcome Screen first, then Eduka-Desktop
 
-The package installs `/etc/xdg/autostart/edukasaun-welcome.desktop`, which runs:
+Two ways are supported; both skip the live system.
 
-```bash
-edukasaun-welcome --session
+**Recommended — before the session starts.** Eduka-Desktop 0.9.24 starts every login with `eduka-desktop-session` → `exec startlxqt`. One line before `exec startlxqt` shows the Welcome Screen before LXQt, Eduka-Panel and Eduka-Desktop start:
+
+```sh
+command -v edukasaun-welcome >/dev/null 2>&1 && edukasaun-welcome --before-session || :
+exec startlxqt
 ```
+
+It returns at once on the live system (`boot=live`), when the user turned the Welcome Screen off, or when it is not installed. It marks the login in `$XDG_RUNTIME_DIR/edukasaun-welcome/`, so the autostart entry below does not show it a second time.
+
+**Fallback — autostart.** The package installs `/etc/xdg/autostart/edukasaun-welcome.desktop` (`edukasaun-welcome --session`):
 
 | Situation | Result |
 | --- | --- |
 | Live system | No Welcome Screen; Eduka-Desktop is started |
-| Installed system, Welcome Screen enabled | Welcome Screen (maximized); Eduka-Menu daemon and Eduka-Panel start when it closes |
+| Already shown before the session | Eduka-Desktop is started |
+| Installed system, Welcome Screen enabled | Welcome Screen (maximized); `eduka-menu --daemon` and `eduka-panel` start when it closes |
 | Installed system, Welcome Screen turned off | Eduka-Desktop is started immediately |
 
-Eduka-Desktop 0.9.10 consists of `eduka-menu --daemon` and `eduka-panel`, both normally started by their own `/etc/xdg/autostart` entries. The gate starts each component that is installed and not already running, with `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`, as configured in `project.json` under `eduka_desktop.components`.
-
-**For the Welcome Screen to really appear first, the Edukasaun OS image (or the Eduka-Desktop package) should start these components through this gate** instead of their own autostart entries. Until then, Eduka-Panel may start at the same time as the Welcome Screen.
+Components that are already running (matched by command line) are not started twice. Without the `eduka-desktop-session` line, Eduka-Panel's own autostart entry may start at the same time as the Welcome Screen.
 
 Manually launching `edukasaun-welcome` on the live system prints a notice and exits. Developers can preview it there with `edukasaun-welcome --force`.
 
@@ -117,7 +127,7 @@ The screenshots do not cover every category. At runtime, the application also re
 
 Detection uses logical families: an installed Flatpak LibreOffice, for example, hides the APT LibreOffice recommendation too. The inventory is scanned again immediately before installation. Failed inventory checks disable installation rather than silently treating everything as absent.
 
-There are **38 alternative application families**, including Chromium, GNOME Web, Falkon, Geary, Claws Mail, LibreOffice, Xournal++, Foliate, MPV, Audacity, Kdenlive, OBS Studio, HandBrake, Shotcut, GNOME Chess, Stellarium, KTouch, KAlgebra, Cantor, Scribus, Blender and selected utilities. Not every candidate is suitable for every machine; nothing is selected automatically. APT entries are enabled only when `apt-cache policy` reports a candidate in the local enabled repositories. Flatpak IDs are checked against the user's Flathub remote before installation.
+There are **67 application families**, chosen for schools: learning and science (GeoGebra, Stellarium, KStars, Step, Kig, Avogadro, Anki, KWordQuiz, Parley, KTouch, Klavaro, KTurtle, gbrainy, Luanti), programming and STEM (Thonny, Mu, Geany, VSCodium, Arduino IDE, Fritzing), office and reading (LibreOffice, Xournal++, Okular, Foliate, calibre, Zim, Joplin), communication, audio and video (Audacity, OBS Studio, Kdenlive, LMMS, MuseScore), graphics (KolourPaint, Pinta, Scribus, Sweet Home 3D, Blender, FreeCAD), system tools (Timeshift, Disks, BleachBit, Flatseal) and accessibility (Onboard, KMag). 14 are marked ★ recommended, and each has a weight badge so schools with older computers can choose light applications. Package names were chosen from Debian 13 and Flathub knowledge and could not be checked online from the development workspace; the runtime check below disables any APT entry that is not available. Not every candidate is suitable for every machine; nothing is selected automatically. APT entries are enabled only when `apt-cache policy` reports a candidate in the local enabled repositories. Flatpak IDs are checked against the user's Flathub remote before installation.
 
 Debian's Chromium package is **`chromium`**, not `chromium-browser`. The latter is accepted only as an installed-package detection alias. Brave uses its official signed APT repository, with a separate consent checkbox. No downloaded shell script is piped into a shell.
 
@@ -136,13 +146,7 @@ For a per-user override, create `~/.config/edukasaun-welcome/project.json` conta
 }
 ```
 
-The donation link is `https://paypal.me/hugocenturion0311`. Verify the configured project website and social links before release. Commands for native desktop tools are in `suite_tools`; `suite` opens `eduka-menu-settings`.
-
-## Desktop behavior
-
-For LXQt, Apply updates only per-user LXQt `icon_theme`, `theme`, and `Palette/highlight_color` values when chosen. It uses Qt's INI serializer, preserves unrelated keys and backs up existing `lxqt.conf` under `~/.config/edukasaun-welcome/backups/`. Wallpaper is applied using `pcmanfm-qt --set-wallpaper ... --wallpaper-mode zoom`. A failed wallpaper command restores the saved LXQt configuration; it cannot undo an external desktop process that partially changes its own state.
-
-Cursor, fonts, the complete color palette and GTK synchronization are handled by **LXQt Appearance**, which has its own Apply button and native session handling. Compositor settings are opened through LXQt Session Settings; configure effects with the installed compositor's own tools. Some running applications may need reopening, and cursor/compositor changes can require a new session, especially under Wayland.
+The donation link is `https://paypal.me/hugocenturion0311`. Verify the configured project website and social links before release. Commands for native desktop tools are in `suite_tools`; `suite` opens `eduka-settings`, `menu` opens Eduka-Desktop.
 
 ## Build, test and remove
 
@@ -152,7 +156,7 @@ Cursor, fonts, the complete color palette and GTK synchronization are handled by
 ./scripts/uninstall.sh
 ```
 
-Tests use fixture inventories, fixture live/installed boot information and an offscreen Qt application. They never install applications, change the system time, or alter the host's desktop or Eduka-Desktop configuration. See [docs/validation.md](docs/validation.md).
+Tests use fixture inventories, fixture live/installed boot information and an offscreen Qt application. They never install applications, change the system time, or alter the host's desktop or Eduka-Desktop configuration. `scripts/render-previews.py` renders the seven screenshots in `docs/`. See [docs/validation.md](docs/validation.md).
 
 Export the installed application inventory without opening the GUI:
 

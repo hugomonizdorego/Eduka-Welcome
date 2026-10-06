@@ -28,18 +28,14 @@
     ]
   },
   "suite_tools": {
-    "appearance": [
-      "lxqt-config-appearance"
-    ],
-    "desktop": [
-      "pcmanfm-qt",
-      "--desktop-pref"
-    ],
-    "effects": [
-      "lxqt-config-session"
+    "menu": [
+      "edukasaun-desktop-menu-open"
     ],
     "suite": [
-      "eduka-menu-settings"
+      "eduka-settings"
+    ],
+    "about": [
+      "eduka-about"
     ]
   },
   "sponsor_contact": "https://www.edukasaunos.tl"

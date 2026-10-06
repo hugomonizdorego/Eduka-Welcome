@@ -26,6 +26,20 @@ def should_show_welcome(preferences, live=None):
     return not live and preferences.get("always_show", True)
 
 
+def shown_marker():
+    return Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "edukasaun-welcome/shown-before-session"
+
+
+def mark_shown():
+    """Remember for this login that the Welcome Screen already ran before the session."""
+    try:
+        marker = shown_marker()
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(str(os.getpid()))
+    except OSError:
+        pass
+
+
 def process_running(name, proc_root="/proc"):
     """Find a process of the current user whose command line runs `name`.
 

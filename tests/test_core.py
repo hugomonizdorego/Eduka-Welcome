@@ -92,7 +92,9 @@ class CatalogTests(unittest.TestCase):
 
     def test_shipped_baseline_and_alternatives(self):
         self.assertEqual(len(self.data["shipped_families"]), 58)
-        self.assertEqual(len(self.apps), 38)
+        self.assertEqual(len(self.apps), 67)
+        self.assertGreaterEqual(sum(app["recommended"] for app in self.apps.values()), 10)
+        self.assertTrue(all(app["weight"] in ("light", "medium", "heavy") for app in self.apps.values()))
         self.assertIn("gnome-chess", self.apps)
         self.assertFalse(set(self.apps).intersection(self.data["shipped_families"]))
         future = json.loads(json.dumps(self.data))
